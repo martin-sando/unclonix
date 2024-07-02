@@ -95,7 +95,7 @@ def process_file(input_file):
         return
 
     #extrapolating found circle to original scale
-    x0, y0, r0 = x0 * compression_power + compression_power // 2, y0 * compression_power + compression_power // 2, r0 * compression_power - compression_power // 2
+    x0, y0, r0 = x0 * compression_power + compression_power // 2, y0 * compression_power + compression_power // 2, r0 * compression_power - compression_power * 2
     width = saved_image.width
     height = saved_image.height
     saved_pixels = saved_image.load()
@@ -128,7 +128,7 @@ def process_file(input_file):
             if check_inside(x1 + x0, y1 + y0, width, height):
                 color = (abs(median[0] - saved_pixels[x1 + x0, y1 + y0][0]) +
                          abs(median[1] - saved_pixels[x1 + x0, y1 + y0][1]) +
-                         abs(median[2] - saved_pixels[x1 + x0, y1 + y0][2]))
+                         abs(median[2] - saved_pixels[x1 + x0, y1 + y0][2])) // 3
                 if dist >= 1:
                     draw_result.point((x1 + r0, y1 + r0), black)
                 elif (dist < 0.98):
@@ -151,11 +151,18 @@ def process_file(input_file):
 
     draw_result = ImageDraw.Draw(binary_image)
 
-    pixel_differ = 60
-
+    brightnesses = []
     for x1 in range(req_width):
         for y1 in range(req_length):
-            if output_pixels[x1, y1][0] > pixel_differ:
+            brightnesses.append(output_pixels[x1, y1][0])
+
+    brightnesses.sort()
+
+    k = 8000
+    color_divider = brightnesses[len(brightnesses) - k]
+    for x1 in range(req_width):
+        for y1 in range(req_length):
+            if output_pixels[x1, y1][0] >= color_divider:
                 draw_result.point((x1, y1), white)
             else:
                 draw_result.point((x1, y1), black)

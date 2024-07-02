@@ -10,14 +10,21 @@ input_folder = '../input'
 output_folder = '../output'
 
 def process_file(input_file):
+    filename = input_file.split('.')[0]
+    print('Processing ' + filename)
     white = (255, 255, 255)
     black = (0, 0, 0)
     req_width = 1024
     req_length = 1024
     req_size = (req_width, req_length)
 
-    input_image = Image.open(input_file)
-    log_picture_number = 1
+    input_image = Image.open(os.path.join(input_folder, input_file))
+    log_picture_number = 0
+    def new_log_picture():
+        nonlocal log_picture_number
+        log_picture_number += 1
+        return os.path.join(output_folder, filename + "_" + str(log_picture_number) + ".png")
+
     width, height = input_image.width, input_image.height
     compression_power = width // 100
     #to_gray
@@ -25,13 +32,11 @@ def process_file(input_file):
 
     saved_gray_image = input_image.copy()
 
-    input_image.save("input_pic" + str(log_picture_number) + ".png")
-    log_picture_number += 1
+    input_image.save(new_log_picture())
 
     #compress image copy to effectively find a circle
     input_image = input_image.resize((width // compression_power, height // compression_power))
-    input_image.save("input_pic" + str(log_picture_number) + ".png")
-    log_picture_number += 1
+    input_image.save(new_log_picture())
 
     width, height = input_image.width, input_image.height
 
@@ -64,7 +69,8 @@ def process_file(input_file):
             circles.append((x, y, r))
 
     if not circles:
-        exit()
+        print('Error: not found circles')
+        return
 
     x0, y0, r0 = 0, 0, 0
 
@@ -77,7 +83,8 @@ def process_file(input_file):
             x0, y0, r0 = x, y, r
 
     if r0 == 0:
-        exit()
+        print('Error: r0 = 0')
+        return
 
     #extrapolating found circle to original scale
     x0, y0, r0 = x0 * compression_power + compression_power // 2, y0 * compression_power + compression_power // 2, r0 * compression_power - compression_power // 2
@@ -110,13 +117,11 @@ def process_file(input_file):
                 color = (int)(saved_gray_pixels[x1 + x0, y1 + y0][0] * (50.0 - 50 * dist) + median * (50.0 * dist - 49))
                 draw_result.point((x1 + r0, y1 + r0),  (color, color, color))
 
-    circled_image.save("input_pic" + str(log_picture_number) + ".png")
-    log_picture_number += 1
+    circled_image.save(new_log_picture())
 
     #resize to 1024*1024
     circled_image = circled_image.resize(req_size)
-    circled_image.save("input_pic" + str(log_picture_number) + ".png")
-    log_picture_number += 1
+    circled_image.save(new_log_picture())
 
 
     #making deviant-colored points black, other - white
@@ -134,8 +139,7 @@ def process_file(input_file):
             else:
                 draw_result.point((x1, y1), white)
 
-    binary_image.save("input_pic" + str(log_picture_number) + ".png")
-    log_picture_number += 1
+    binary_image.save(new_log_picture())
 
 def run_all():
 	input_files = os.listdir(input_folder)

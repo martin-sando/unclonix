@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from PIL import Image, ImageDraw
 from math import sqrt, pi, cos, sin
 from canny import canny_edge_detector, return_grayscale

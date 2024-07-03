@@ -28,7 +28,8 @@ def process_file(input_file):
         log_picture_number += 1
         return os.path.join(output_folder, filename + "_" + str(log_picture_number) + ".png")
 
-    last_picture = os.path.join(output_folder, "_last_" + filename + ".png")
+    def tag_picture(tag):
+        return os.path.join(output_folder, "_" + tag + "_" + filename + ".png")
 
     width, height = input_image.width, input_image.height
     compression_power = width // 100
@@ -168,7 +169,7 @@ def process_file(input_file):
                 draw_result.point((x1, y1), black)
 
     binary_image.save(new_log_picture())
-    binary_image.save(last_picture)
+    binary_image.save(tag_picture("last"))
 
 def run_all():
 	input_files = os.listdir(input_folder)

@@ -1,13 +1,15 @@
 from math import sqrt, atan2, pi
 import numpy as np
 from PIL import Image, ImageDraw
+from math import sqrt, pi, cos, sin
+from collections import defaultdict
 def canny_edge_detector(input_image):
     input_pixels = input_image.load()
     width = input_image.width
     height = input_image.height
 
     # Transform the image to grayscale
-    grayscaled = compute_grayscale(input_pixels, width, height);
+    grayscaled = compute_grayscale(input_pixels, width, height)
 
     # Blur it to remove noise
     blurred = compute_blur(grayscaled, width, height)
@@ -120,3 +122,41 @@ def return_grayscale(input_image, width, height):
             shade = (pixel[0] + pixel[1] + pixel[2]) // 3
             draw.point((x, y),(shade, shade, shade))
     return grayscale
+
+def find_circles(input_image, rmin, rmax, precision):
+    steps = 100
+    threshold = precision
+
+    points = []
+    for r in range(rmin, rmax + 1):
+        for t in range(steps):
+            points.append((r, int(r * cos(2 * pi * t / steps)), int(r * sin(2 * pi * t / steps))))
+
+    acc = defaultdict(int)
+    for x, y in canny_edge_detector(input_image):
+        for r, dx, dy in points:
+            a = x - dx
+            b = y - dy
+            acc[(a, b, r)] += 1
+
+    circles = []
+    for k, v in sorted(acc.items(), key=lambda i: -i[1]):
+        x, y, r = k
+        if v / steps >= threshold:
+            #            print(v / steps, x, y, r)
+            circles.append((x, y, r))
+    return circles
+
+def rotate(input_image, rotation, r):
+    rotated_image = Image.new("RGB", [2 * r + 1, 2 * r + 1])
+    input_pixels = input_image.load()
+    draw_result = ImageDraw.Draw(rotated_image)
+    for x1 in range(-r, r + 1):
+        for y1 in range(-r, r + 1):
+            if (x1) ** 2 + (y1) ** 2 <= r ** 2:
+                draw_result.point((x1 + r, y1 + r),
+                                  input_pixels[int(r + (x1 * cos(rotation) + y1 * sin(rotation))),
+                                  int(r + (-x1 * sin(rotation) + y1 * cos(rotation)))])
+            else:
+                draw_result.point((x1 + r, y1 + r), (0, 0, 0))
+    return rotated_image

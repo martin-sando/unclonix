@@ -18,10 +18,10 @@ def canny_edge_detector(input_image):
     gradient, direction = compute_gradient(blurred, width, height)
 
     # Non-maximum suppression
-    filter_out_non_maximum(gradient, direction, width, height)
+    #filter_out_non_maximum(gradient, direction, width, height)
 
     # Filter out some edges
-    keep = filter_strong_edges(gradient, width, height, 20, 25)
+    keep = filter_strong_edges(gradient, width, height, 15, 20)
 
     return keep
 
@@ -143,8 +143,8 @@ def find_circles(input_image, rmin, rmax, precision):
     for k, v in sorted(acc.items(), key=lambda i: -i[1]):
         x, y, r = k
         if v / steps >= threshold:
-            #            print(v / steps, x, y, r)
-            circles.append((x, y, r))
+            #print(v / steps, x, y, r)
+            circles.append((x, y, r, v/steps))
     return circles
 
 def rotate(input_image, rotation, r):

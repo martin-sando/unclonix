@@ -1,21 +1,48 @@
 #!/usr/bin/env python3
+import cv2
 from PIL import Image, ImageDraw
 from math import sqrt, pi, cos, sin
 from canny import return_grayscale, find_circles, rotate
 from collections import defaultdict
 import sys
 import os.path
+import numpy as np
 
 input_folder = '../input'
 output_folder = '../output'
+
+def get_fft_image(image):
+    array_image = np.ndarray((512, 512))
+    image_pixels = image.load()
+
+    for x1 in range(512):
+        for y1 in range(512):
+            array_image[x1, y1] = image_pixels[x1, y1][0]
+
+    l = 15
+
+    fft_image = Image.new("RGB", [2*l + 1, 2*l + 1])
+    draw_result = ImageDraw.Draw(fft_image)
+    fft_transform = np.fft.fft2(array_image,None, None, "backward")
+    fft_transform = np.fft.fftshift(fft_transform)
+
+    for x1 in range(-l, l + 1):
+        for y1 in range(-l, l + 1):
+            a = fft_transform[x1 + 256, y1 + 256].real
+            b = fft_transform[x1 + 256, y1 + 256].imag
+            color1 = int(np.log(sqrt(a**2 + b**2)) * 150 - 1400)
+            draw_result.point((x1 + l, y1 + l), (color1, color1, color1))
+    return fft_image
+
+
 
 def process_file(input_file):
     filename = input_file.split('.')[0]
     print('Processing ' + filename)
     white = (255, 255, 255)
     black = (0, 0, 0)
-    req_width = 1024
-    req_length = 1024
+    req_width = 512
+    req_length = 512
     req_size = (req_width, req_length)
 
     input_image = Image.open(os.path.join(input_folder, input_file))
@@ -136,8 +163,18 @@ def process_file(input_file):
 
     #resize to 1024*1024
     circled_image = circled_image.resize(req_size)
+    circled_image = circled_image.copy()
     circled_image.save(new_log_picture())
     circled_image.save(tag_picture("last"))
+
+    fft_image = get_fft_image(circled_image)
+    fft_image.save(tag_picture("fft"))
+
+
+
+
+
+
 
 def run_all():
     input_files = os.listdir(input_folder)

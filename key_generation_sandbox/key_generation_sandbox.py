@@ -11,29 +11,58 @@ import numpy as np
 input_folder = '../input'
 output_folder = '../output'
 
-def get_fft_image(image):
-    array_image = np.ndarray((512, 512))
+
+def check_inside(x, y, w, h, overflow=0, rd=0):
+    return (((x - rd) >= -overflow) & ((y - rd) >= -overflow)) & (
+            ((x + rd) < (w + overflow)) & ((y + rd) < (h + overflow)))
+
+
+def get_best_circle(circles, width, height, max_overflow):
+    x0, y0, r0, pr0 = 0, 0, 0, 0
+    for circle in circles:
+        x = circle[0]
+        y = circle[1]
+        r = circle[2]
+        pr = circle[3]
+        if ((pr > pr0) | ((pr == pr0) & (r > r0))) & check_inside(x, y, width, height, max_overflow, r):
+            x0, y0, r0, pr0 = circle
+
+    if r0 == 0:
+        return (0, 0, 0, 0)
+    return (x0, y0, r0, pr0)
+
+
+def get_circle_image(x0, y0, r0, compression_power, saved_image):
+    x0, y0 = x0 * compression_power + compression_power // 2, y0 * compression_power + compression_power // 2
+    saved_pixels = saved_image.load()
+    circle_image = Image.new("RGB", [2 * r0 + 1, 2 * r0 + 1])
+    draw_result = ImageDraw.Draw(circle_image)
+    for x1 in range(-r0, r0 + 1):
+        for y1 in range(-r0, r0 + 1):
+            draw_result.point((x1 + r0, y1 + r0), saved_pixels[x1 + x0, y1 + y0])
+    return circle_image
+
+
+def get_fft_image(image, image_size, fft_radius, coef_1, coef_2):
+    array_image = np.ndarray((image_size, image_size))
     image_pixels = image.load()
 
-    for x1 in range(512):
-        for y1 in range(512):
+    for x1 in range(image_size):
+        for y1 in range(image_size):
             array_image[x1, y1] = image_pixels[x1, y1][0]
 
-    l = 15
-
-    fft_image = Image.new("RGB", [2*l + 1, 2*l + 1])
+    fft_image = Image.new("RGB", [2 * fft_radius + 1, 2 * fft_radius + 1])
     draw_result = ImageDraw.Draw(fft_image)
-    fft_transform = np.fft.fft2(array_image,None, None, "backward")
+    fft_transform = np.fft.fft2(array_image, None, None, "backward")
     fft_transform = np.fft.fftshift(fft_transform)
 
-    for x1 in range(-l, l + 1):
-        for y1 in range(-l, l + 1):
-            a = fft_transform[x1 + 256, y1 + 256].real
-            b = fft_transform[x1 + 256, y1 + 256].imag
-            color1 = int(np.log(sqrt(a**2 + b**2)) * 150 - 1400)
-            draw_result.point((x1 + l, y1 + l), (color1, color1, color1))
+    for x1 in range(-fft_radius, fft_radius + 1):
+        for y1 in range(-fft_radius, fft_radius + 1):
+            a = fft_transform[x1 + image_size // 2, y1 + image_size // 2].real
+            b = fft_transform[x1 + image_size // 2, y1 + image_size // 2].imag
+            color1 = int(np.log(sqrt(a ** 2 + b ** 2)) * coef_1 + coef_2)
+            draw_result.point((x1 + fft_radius, y1 + fft_radius), (color1, color1, color1))
     return fft_image
-
 
 
 def process_file(input_file):
@@ -63,7 +92,6 @@ def process_file(input_file):
     #to_gray
     input_image = return_grayscale(input_image, width, height)
 
-
     input_image.save(new_log_picture())
 
     #compress image copy to effectively find a circle
@@ -74,7 +102,7 @@ def process_file(input_file):
 
     input_pixels = input_image.load()
 
-    # Find circles, assuming their D is at least half of min(h, w)
+    # Find circles, assuming their D is at least quarter of min(h, w)
     rmin = min(input_image.height, input_image.width) // 8
     rmax = int(min(input_image.height, input_image.width) / 1.9)
     precision = 0.7
@@ -84,42 +112,44 @@ def process_file(input_file):
         print('Error: not found circles')
         return
 
-    x0, y0, r0, pr0 = 0, 0, 0, 0
     max_overflow = 15
-
-    def check_inside(x, y, w, h, overflow=0, rd=0):
-        return (((x - rd) > -overflow) & ((y - rd) > -overflow)) & (
-                ((x + rd) < (w + overflow)) & ((y + rd) < (h + overflow)))
-
-    # looking for the largest circle fitting inside image
-    for circle in circles:
-        x = circle[0]
-        y = circle[1]
-        r = circle[2]
-        pr = circle[3]
-        if ((pr > pr0) | ((pr == pr0) & (r > r0))) & check_inside(x, y, width, height, max_overflow, r):
-            x0, y0, r0, pr0 = x, y, r, pr
+    x0, y0, r0, pr0 = get_best_circle(circles, width, height, max_overflow)
 
     if r0 == 0:
         print('Error: r0 = 0')
         return
 
     #extrapolating found circle to original scale
-    x0, y0, r0 = x0 * compression_power + compression_power // 2, y0 * compression_power + compression_power // 2, int(r0 * compression_power - compression_power * 2)
-    width = saved_image.width
-    height = saved_image.height
-    saved_pixels = saved_image.load()
-    logo_image = Image.new("RGB", [2 * r0 + 1, 2 * r0 + 1])
-    draw_result = ImageDraw.Draw(logo_image)
-    for x1 in range(-r0, r0 + 1):
-        for y1 in range(-r0, r0 + 1):
-            if ((x1) ** 2 + (y1) ** 2 <= r0 ** 2) & check_inside(x0 + x1, y0 + y1, width, height):
-                draw_result.point((x1 + r0, y1 + r0), saved_pixels[x1 + x0, y1 + y0])
-            else:
-                draw_result.point((x1 + r0, y1 + r0), black)
+    logo_image = get_circle_image(x0, y0, int(r0 * compression_power * 1.1), compression_power, saved_image)
 
 
+    logo_image.save(new_log_picture())
+    width = logo_image.width
+    height = logo_image.height
+    compression_power = width // 200
+    saved_logo = logo_image.copy()
+    logo_image = logo_image.resize((width // compression_power, height // compression_power))
+    width = logo_image.width
+    height = logo_image.height
+    rmin = int(min(width, height) / 2.7)
+    rmax = int(min(width, height) / 1.9)
+    precision = 0.7
+    circles = find_circles(logo_image, rmin, rmax, precision)
 
+    if not circles:
+        print('Error: not found circles (extremely weird!)')
+        return
+
+    max_overflow = 15
+    x0, y0, r0, pr0 = get_best_circle(circles, width, height, max_overflow)
+
+    x0, y0, r0 = x0 * compression_power + compression_power // 2, y0 * compression_power + compression_power // 2, int(r0 * compression_power - compression_power)
+    width, height = saved_logo.width, saved_logo.height
+    if r0 == 0:
+        print('Error: r0 = 0')
+        return
+
+    saved_pixels = saved_logo.load()
 
     inner_colours = [[], [], []]
 
@@ -138,7 +168,6 @@ def process_file(input_file):
               inner_colours[1][len(inner_colours[1]) // 2],
               inner_colours[2][len(inner_colours[2]) // 2])
     circled_image = Image.new("RGB", [2 * r0 + 1, 2 * r0 + 1])
-    circled_image.paste(input_image)
     draw_result = ImageDraw.Draw(circled_image)
 
     #redrawing image to make circle big and erase blackground
@@ -157,8 +186,6 @@ def process_file(input_file):
                     color = int(color * (10.0 - 10.0 * dist))
                     draw_result.point((x1 + r0, y1 + r0), (color, color, color))
 
-
-
     circled_image.save(new_log_picture())
 
     #resize to 1024*1024
@@ -167,19 +194,15 @@ def process_file(input_file):
     circled_image.save(new_log_picture())
     circled_image.save(tag_picture("last"))
 
-    fft_image = get_fft_image(circled_image)
+    fft_image = get_fft_image(circled_image, req_length, 15, 140, -1400)
     fft_image.save(tag_picture("fft"))
-
-
-
-
-
 
 
 def run_all():
     input_files = os.listdir(input_folder)
     for input_file in input_files:
         process_file(input_file)
+
 
 if __name__ == '__main__':
     os.makedirs(output_folder, exist_ok=True)

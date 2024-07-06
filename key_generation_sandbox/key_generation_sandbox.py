@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 import cv2
 from PIL import Image, ImageDraw
+import imagehash
 from math import sqrt, pi, cos, sin
-from canny import return_grayscale, find_circles, rotate
+from canny import return_grayscale, find_circles, rotate, compute_gradient
 from collections import defaultdict
 import sys
 import os.path
 import numpy as np
+from findiff import Gradient, Divergence, Laplacian, Curl
 
 input_folder = '../input'
 output_folder = '../output'
+experiment_folder = '../output-experiment'
 
 
 def check_inside(x, y, w, h, overflow=0, rd=0):
@@ -64,15 +67,56 @@ def get_fft_image(image, image_size, fft_radius, coef_1, coef_2):
             draw_result.point((x1 + fft_radius, y1 + fft_radius), (color1, color1, color1))
     return fft_image
 
+def get_gradient_image(image, width, height):
+    input_pixels = image.load()
+    grad_image = Image.new("RGB", [width, height])
+    draw_result = ImageDraw.Draw(grad_image)
+
+    for x in range(width):
+        for y in range(height):
+            if 0 < x < width - 1 and 0 < y < height - 1:
+                magx = input_pixels[x + 1, y][0] - input_pixels[x - 1, y][0]
+                magy = input_pixels[x, y + 1][0] - input_pixels[x, y - 1][0]
+                color = int(sqrt(magx**2 + magy**2))
+                draw_result.point((x, y), (color, color, color))
+    return grad_image
+
+def find_small_circles(input_image, rmin, rmax, precision):
+    steps = 10
+    threshold = precision * 255
+    input_pixels = input_image.load()
+
+    points = []
+    for r in range(rmin, rmax + 1):
+        for t in range(steps):
+            points.append((r, int(r * cos(2 * pi * t / steps)), int(r * sin(2 * pi * t / steps))))
+
+    acc = defaultdict(int)
+    for x in range(input_image.width):
+        for y in range(input_image.height):
+            brightness = input_pixels[x, y][0]
+            for r, dx, dy in points:
+                a = x - dx
+                b = y - dy
+                acc[(a, b, r)] += brightness
+
+    circles = []
+    for k, v in sorted(acc.items(), key=lambda i: -i[1]):
+        x, y, r = k
+        if v / steps >= threshold and all((x - xc) ** 2 + (y - yc) ** 2 > (rc * 1.5) ** 2 for xc, yc, rc, pr in circles):
+            #print(v / steps, x, y, r)
+            circles.append((x, y, r, v/steps))
+    return circles
 
 def process_file(input_file):
     filename = input_file.split('.')[0]
     print('Processing ' + filename)
     white = (255, 255, 255)
     black = (0, 0, 0)
+    blue = (0, 0, 255)
     req_width = 512
-    req_length = 512
-    req_size = (req_width, req_length)
+    req_height = 512
+    req_size = (req_width, req_height)
 
     input_image = Image.open(os.path.join(input_folder, input_file))
     saved_image = input_image.copy()
@@ -83,6 +127,9 @@ def process_file(input_file):
         nonlocal log_picture_number
         log_picture_number += 1
         return os.path.join(output_folder, filename + "_" + str(log_picture_number) + ".png")
+
+    def experiment_picture(tag):
+        return os.path.join(experiment_folder, "_" + tag + "_" + filename + ".png")
 
     def tag_picture(tag):
         return os.path.join(output_folder, "_" + tag + "_" + filename + ".png")
@@ -193,9 +240,37 @@ def process_file(input_file):
     circled_image = circled_image.copy()
     circled_image.save(new_log_picture())
     circled_image.save(tag_picture("last"))
+    # circled_pixels = circled_image.load()
+    # circled_array = np.empty((req_width, req_height))
+    # for x in range(req_width):
+    #     for y in range(req_height):
+    #         circled_array[x, y] = circled_pixels[x, y][0]
 
-    fft_image = get_fft_image(circled_image, req_length, 15, 140, -1400)
-    fft_image.save(tag_picture("fft"))
+    # fft_image = get_fft_image(circled_image, req_height, 15, 140, -1400)
+    # fft_image.save(experiment_picture("fft"))
+    #
+    # grad_image = get_gradient_image(circled_image, req_width, req_height)
+    # grad_image.save(experiment_picture("gradient"))
+
+
+    # draw_result = ImageDraw.Draw(circled_image)
+    # found_glitter = find_small_circles(grad_image, 2, 5, 0.15)
+    # for circle in found_glitter:
+    #     x = circle[0]
+    #     y = circle[1]
+    #     draw_result.point((x, y), blue)
+    #     for i in range(circle[2]):
+    #         draw_result.point((x, y+i), blue)
+    #         draw_result.point((x, y-i), blue)
+    #         draw_result.point((x+i, y), blue)
+    #         draw_result.point((x-i, y), blue)
+    #
+    #
+    # circled_image.save(experiment_picture("found_blobs"))
+    phash = imagehash.phash(circled_image)
+    hash_as_str = str(phash)
+    print(hash_as_str)
+
 
 
 def run_all():
@@ -206,4 +281,5 @@ def run_all():
 
 if __name__ == '__main__':
     os.makedirs(output_folder, exist_ok=True)
+    os.makedirs(experiment_folder, exist_ok=True)
     run_all()

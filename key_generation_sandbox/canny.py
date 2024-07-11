@@ -142,7 +142,7 @@ def find_circles(input_image, rmin, rmax, precision):
     circles = []
     for k, v in sorted(acc.items(), key=lambda i: -i[1]):
         x, y, r = k
-        if v / steps >= threshold and all((x - xc) ** 2 + (y - yc) ** 2 > rc ** 2 for xc, yc, rc, pr in circles):
+        if v / steps >= threshold:
             #print(v / steps, x, y, r)
             circles.append((x, y, r, v/steps))
     return circles

@@ -17,7 +17,6 @@ from skimage.color import rgb2gray
 
 input_folder = '../input'
 output_folder = '../output'
-experiment_folder = '../output-experiment'
 bloblist_folder = '../bloblist'
 
 def check_inside(x, y, w, h, overflow=0, rd=0):
@@ -146,27 +145,25 @@ def process_file(input_file):
 
     log_picture_number = 0
 
-    def new_log_picture():
+    def save(image, tag):
         nonlocal log_picture_number
         log_picture_number += 1
-        return os.path.join(output_folder, filename + "#" + str(log_picture_number) + ".png")
+        tag = 'p' + str(log_picture_number).zfill(2) + tag
+        image.save(os.path.join(output_folder, filename + "_" + tag + ".png"))
+        image.save(os.path.join(output_folder, tag + "_" + filename + ".png"))
 
-    def experiment_picture(tag):
-        return os.path.join(experiment_folder, "#" + tag + "#" + filename + ".png")
 
-    def tag_picture(tag):
-        return os.path.join(output_folder, "#" + tag + "#" + filename + ".png")
-
+    save(input_image, 'input')
     width, height = input_image.width, input_image.height
     compression_power = width // 100
     #to_gray
     input_image = return_grayscale(input_image, width, height)
 
-    input_image.save(new_log_picture())
+    save(input_image, 'todo1')
 
     #compress image copy to effectively find a circle
     input_image = input_image.resize((width // compression_power, height // compression_power))
-    input_image.save(new_log_picture())
+    save(input_image, 'todo2')
 
     width, height = input_image.width, input_image.height
 
@@ -193,7 +190,7 @@ def process_file(input_file):
     logo_image = get_circle_image(x0, y0, int(r0 * compression_power * 1.1), compression_power, saved_image)
 
 
-    logo_image.save(new_log_picture())
+    save(logo_image, 'todo3')
     width = logo_image.width
     height = logo_image.height
     compression_power = width // 200
@@ -256,13 +253,12 @@ def process_file(input_file):
                     color = int(color * (10.0 - 10.0 * dist))
                     draw_result.point((x1 + r0, y1 + r0), (color, color, color))
 
-    circled_image.save(new_log_picture())
+    save(circled_image, 'todo4')
 
     #resize to 1024*1024
     circled_image = circled_image.resize(req_size)
     circled_image = circled_image.copy()
-    circled_image.save(new_log_picture())
-    circled_image.save(tag_picture("last"))
+    save(circled_image, 'last')
     circled_pixels = circled_image.load()
 
 
@@ -289,7 +285,7 @@ def process_file(input_file):
             draw_result.point((x, y-i), blue)
             draw_result.point((x+i, y), blue)
             draw_result.point((x-i, y), blue)
-    log_picture.save(experiment_picture("found_blobs_log"))
+    save(log_picture, 'found_blobs_log')
 
 
     neighbor_array = np.ndarray((req_width, req_height))
@@ -306,7 +302,7 @@ def process_file(input_file):
                         neighbor_array[int(x+i), int(y+j)] += exp(-(dist + sigma)*0.1)*40
 
     neighbor_image = to_image(neighbor_array, req_width, req_height)
-    neighbor_image.save(experiment_picture("neighbors"))
+    save(neighbor_image, 'neighbors')
 
 
 
@@ -323,7 +319,7 @@ def process_file(input_file):
             draw_result.point((x, y-i), red)
             draw_result.point((x+i, y), red)
             draw_result.point((x-i, y), red)
-    dog_picture.save(experiment_picture("found_blobs_dog"))
+    save(dog_picture, 'found_blobs_dog')
 
 
     x, y = [np.linspace(0, req_width - 1, req_width)] * 2
@@ -335,7 +331,7 @@ def process_file(input_file):
     lap_image = to_image(lap_array, req_width, req_height)
 
 
-    lap_image.save(experiment_picture("laplacian"))
+    save(lap_image, 'laplacian')
 
     # circled_array = np.empty((req_width, req_height))
     # for x in range(req_width):
@@ -343,10 +339,10 @@ def process_file(input_file):
     #         circled_array[x, y] = circled_pixels[x, y][0]
 
     # fft_image = get_fft_image(circled_image, req_height, 15, 140, -1400)
-    # fft_image.save(experiment_picture("fft"))
+    # save(fft_image, 'fft')
     #
     # grad_image = get_gradient_image(circled_image, req_width, req_height)
-    # grad_image.save(experiment_picture("gradient"))
+    # save(grad_image, 'gradient'))
 
 
     # draw_result = ImageDraw.Draw(circled_image)
@@ -362,7 +358,7 @@ def process_file(input_file):
     #         draw_result.point((x-i, y), blue)
     #
     #
-    # circled_image.save(experiment_picture("found_blobs"))
+    # save(circled_image, 'found_blobs')
 
     array_image = np.ndarray((req_width, req_height))
     for x1 in range(req_width):
@@ -379,13 +375,13 @@ def process_file(input_file):
             color = int(dct_array[x1, y1])
             draw_result.point((x1, y1), (color, color, color))
 
-    dct_image.save(experiment_picture("dct"))
+    save(dct_image, 'dct')
 
     phash = imagehash.phash(circled_image)
     hash_as_str = str(phash)
     print(hash_as_str)
     # circled_image = rotate(circled_image, 100, 256)
-    # circled_image.save(new_log_picture())
+    # save(circled_image, 'todo5')
     # phash = imagehash.phash(circled_image)
     # hash_as_str = str(phash)
     # print(hash_as_str)
@@ -399,6 +395,5 @@ def run_all():
 
 if __name__ == '__main__':
     os.makedirs(output_folder, exist_ok=True)
-    os.makedirs(experiment_folder, exist_ok=True)
     os.makedirs(bloblist_folder, exist_ok=True)
     run_all()

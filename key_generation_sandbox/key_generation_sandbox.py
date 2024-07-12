@@ -17,7 +17,7 @@ from skimage.color import rgb2gray
 
 input_folder = '../input'
 output_folder = '../output'
-bloblist_folder = '../bloblist'
+bloblist_folder = output_folder + '/bloblist'
 
 def check_inside(x, y, w, h, overflow=0, rd=0):
     return (((x - rd) >= -overflow) & ((y - rd) >= -overflow)) & (
@@ -273,7 +273,7 @@ def process_file(input_file):
     log_picture = circled_image.copy()
     draw_result = ImageDraw.Draw(log_picture)
 
-    text_file = open(os.path.join(bloblist_folder, "#" + filename), 'w')
+    text_file = open(os.path.join(bloblist_folder, filename + '.txt'), 'w')
     for blob in blobs_log:
         x = blob[1]
         y = blob[0]

@@ -155,7 +155,7 @@ def process_file(input_file):
 
     save(input_image, 'input')
     width, height = input_image.width, input_image.height
-    compression_power = width // 100
+    compression_power = width // 150
     #to_gray
     input_image = return_grayscale(input_image, width, height)
 
@@ -241,7 +241,7 @@ def process_file(input_file):
     for x1 in range(-r0, r0 + 1):
         for y1 in range(-r0, r0 + 1):
             dist = sqrt((x1 ** 2 + y1 ** 2) / (r0 ** 2))
-            if check_inside(x1 + r0, y1 + r0, width, height):
+            if check_inside(x1 + x0, y1 + y0, width, height):
                 color = (abs(median[0] - saved_pixels[x1 + x0, y1 + y0][0]) +
                          abs(median[1] - saved_pixels[x1 + x0, y1 + y0][1]) +
                          abs(median[2] - saved_pixels[x1 + x0, y1 + y0][2])) // 3

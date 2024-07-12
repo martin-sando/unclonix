@@ -111,7 +111,7 @@ def find_small_circles(input_image, rmin, rmax, precision):
     return circles
 
 def to_array(input_image):
-    array_image = np.ndarray((input_image.width, input_image.height))
+    array_image = np.zeros((input_image.width, input_image.height))
     image_pixels = input_image.load()
 
     for x1 in range(input_image.width):
@@ -136,8 +136,8 @@ def process_file(input_file):
     black = (0, 0, 0)
     blue = (0, 0, 255)
     red = (255, 0, 0)
-    req_width = 1024
-    req_height = 1024
+    req_width = 512
+    req_height = 512
     req_size = (req_width, req_height)
 
     input_image = Image.open(os.path.join(input_folder, input_file))
@@ -159,11 +159,11 @@ def process_file(input_file):
     #to_gray
     input_image = return_grayscale(input_image, width, height)
 
-    save(input_image, 'todo1')
+    save(input_image, 'to_gray')
 
     #compress image copy to effectively find a circle
     input_image = input_image.resize((width // compression_power, height // compression_power))
-    save(input_image, 'todo2')
+    save(input_image, 'compressed')
 
     width, height = input_image.width, input_image.height
 
@@ -190,7 +190,7 @@ def process_file(input_file):
     logo_image = get_circle_image(x0, y0, int(r0 * compression_power * 1.1), compression_power, saved_image)
 
 
-    save(logo_image, 'todo3')
+    save(logo_image, 'large_circle')
     width = logo_image.width
     height = logo_image.height
     compression_power = width // 200
@@ -253,12 +253,29 @@ def process_file(input_file):
                     color = int(color * (10.0 - 10.0 * dist))
                     draw_result.point((x1 + r0, y1 + r0), (color, color, color))
 
-    save(circled_image, 'todo4')
+    save(circled_image, 'trimmed')
 
-    #resize to 1024*1024
+    #resize
     circled_image = circled_image.resize(req_size)
     circled_image = circled_image.copy()
-    save(circled_image, 'last')
+    circled_pixels = circled_image.load()
+    draw_result = ImageDraw.Draw(circled_image)
+
+    total_brightness = 0
+    for x1 in range(req_width):
+        for y1 in range(req_height):
+            total_brightness += circled_pixels[x1, y1][0]
+
+    req_brightness = 4000000
+    brightness_coef = req_brightness / total_brightness
+    for x1 in range(req_width):
+        for y1 in range(req_height):
+            color = int(circled_pixels[x1, y1][0] * brightness_coef)
+            draw_result.point((x1, y1), (color, color, color))
+
+    save(circled_image, 'brightened')
+
+    circled_image = circled_image.copy()
     circled_pixels = circled_image.load()
 
 
@@ -286,9 +303,9 @@ def process_file(input_file):
             draw_result.point((x+i, y), blue)
             draw_result.point((x-i, y), blue)
     save(log_picture, 'blobs_log')
+    save(log_picture, 'last')
 
-
-    neighbor_array = np.ndarray((req_width, req_height))
+    neighbor_array = np.zeros((req_width, req_height))
     radius = 50
     for blob in blobs_log:
         x = blob[1]
@@ -360,7 +377,7 @@ def process_file(input_file):
     #
     # save(circled_image, 'blobs')
 
-    array_image = np.ndarray((req_width, req_height))
+    array_image = np.zeros((req_width, req_height))
     for x1 in range(req_width):
         for y1 in range(req_height):
             array_image[x1, y1] = circled_pixels[x1, y1][0] + 0.0

@@ -18,7 +18,7 @@ from skimage.color import rgb2gray
 input_folder = '../input'
 output_folder = '../output'
 experiment_folder = '../output-experiment'
-
+bloblist_folder = '../bloblist'
 
 def check_inside(x, y, w, h, overflow=0, rd=0):
     return (((x - rd) >= -overflow) & ((y - rd) >= -overflow)) & (
@@ -47,7 +47,10 @@ def get_circle_image(x0, y0, r0, compression_power, saved_image):
     draw_result = ImageDraw.Draw(circle_image)
     for x1 in range(-r0, r0 + 1):
         for y1 in range(-r0, r0 + 1):
-            draw_result.point((x1 + r0, y1 + r0), saved_pixels[x1 + x0, y1 + y0])
+            if (check_inside(x1 + x0, y1 + y0, saved_image.width, saved_image.height)):
+                draw_result.point((x1 + r0, y1 + r0), saved_pixels[x1 + x0, y1 + y0])
+            else:
+                draw_result.point((x1 + r0, y1 + r0), (0, 0, 0))
     return circle_image
 
 
@@ -134,8 +137,8 @@ def process_file(input_file):
     black = (0, 0, 0)
     blue = (0, 0, 255)
     red = (255, 0, 0)
-    req_width = 512
-    req_height = 512
+    req_width = 1024
+    req_height = 1024
     req_size = (req_width, req_height)
 
     input_image = Image.open(os.path.join(input_folder, input_file))
@@ -146,13 +149,13 @@ def process_file(input_file):
     def new_log_picture():
         nonlocal log_picture_number
         log_picture_number += 1
-        return os.path.join(output_folder, filename + "_" + str(log_picture_number) + ".png")
+        return os.path.join(output_folder, filename + "#" + str(log_picture_number) + ".png")
 
     def experiment_picture(tag):
-        return os.path.join(experiment_folder, "_" + tag + "_" + filename + ".png")
+        return os.path.join(experiment_folder, "#" + tag + "#" + filename + ".png")
 
     def tag_picture(tag):
-        return os.path.join(output_folder, "_" + tag + "_" + filename + ".png")
+        return os.path.join(output_folder, "#" + tag + "#" + filename + ".png")
 
     width, height = input_image.width, input_image.height
     compression_power = width // 100
@@ -273,10 +276,13 @@ def process_file(input_file):
 
     log_picture = circled_image.copy()
     draw_result = ImageDraw.Draw(log_picture)
+
+    text_file = open(os.path.join(bloblist_folder, "#" + filename), 'w')
     for blob in blobs_log:
         x = blob[1]
         y = blob[0]
         sigma = blob[2]
+        text_file.write(str(x) + ' ' + str(y) + ' ' + str(sigma) + "\n")
         draw_result.point((x, y), blue)
         for i in range(int(sigma)):
             draw_result.point((x, y+i), blue)
@@ -394,4 +400,5 @@ def run_all():
 if __name__ == '__main__':
     os.makedirs(output_folder, exist_ok=True)
     os.makedirs(experiment_folder, exist_ok=True)
+    os.makedirs(bloblist_folder, exist_ok=True)
     run_all()

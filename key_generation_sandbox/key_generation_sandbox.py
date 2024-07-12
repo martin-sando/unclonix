@@ -285,7 +285,7 @@ def process_file(input_file):
             draw_result.point((x, y-i), blue)
             draw_result.point((x+i, y), blue)
             draw_result.point((x-i, y), blue)
-    save(log_picture, 'found_blobs_log')
+    save(log_picture, 'blobs_log')
 
 
     neighbor_array = np.ndarray((req_width, req_height))
@@ -319,7 +319,7 @@ def process_file(input_file):
             draw_result.point((x, y-i), red)
             draw_result.point((x+i, y), red)
             draw_result.point((x-i, y), red)
-    save(dog_picture, 'found_blobs_dog')
+    save(dog_picture, 'blobs_dog')
 
 
     x, y = [np.linspace(0, req_width - 1, req_width)] * 2
@@ -358,7 +358,7 @@ def process_file(input_file):
     #         draw_result.point((x-i, y), blue)
     #
     #
-    # save(circled_image, 'found_blobs')
+    # save(circled_image, 'blobs')
 
     array_image = np.ndarray((req_width, req_height))
     for x1 in range(req_width):

@@ -406,7 +406,9 @@ def process_file(input_file):
 
 def run_all():
     input_files = os.listdir(input_folder)
-    for input_file in input_files:
+    for input_file in sorted(input_files):
+        if '~' in input_file:
+            continue
         process_file(input_file)
 
 

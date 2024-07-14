@@ -14,10 +14,10 @@ from skimage import data
 from skimage.feature import blob_dog, blob_log, blob_doh
 from skimage.color import rgb2gray
 
-
 input_folder = '../input'
 output_folder = '../output'
 bloblist_folder = output_folder + '/bloblist'
+
 
 def check_inside(x, y, w, h, overflow=0, rd=0):
     return (((x - rd) >= -overflow) & ((y - rd) >= -overflow)) & (
@@ -69,6 +69,7 @@ def get_fft_image(image, image_size, fft_radius, coef_1, coef_2):
             draw_result.point((x1 + fft_radius, y1 + fft_radius), (color1, color1, color1))
     return fft_image
 
+
 def get_gradient_image(image, width, height):
     input_pixels = image.load()
     grad_image = Image.new("RGB", [width, height])
@@ -79,9 +80,10 @@ def get_gradient_image(image, width, height):
             if 0 < x < width - 1 and 0 < y < height - 1:
                 magx = input_pixels[x + 1, y][0] - input_pixels[x - 1, y][0]
                 magy = input_pixels[x, y + 1][0] - input_pixels[x, y - 1][0]
-                color = int(sqrt(magx**2 + magy**2))
+                color = int(sqrt(magx ** 2 + magy ** 2))
                 draw_result.point((x, y), (color, color, color))
     return grad_image
+
 
 def find_small_circles(input_image, rmin, rmax, precision):
     steps = 10
@@ -105,10 +107,12 @@ def find_small_circles(input_image, rmin, rmax, precision):
     circles = []
     for k, v in sorted(acc.items(), key=lambda i: -i[1]):
         x, y, r = k
-        if v / steps >= threshold and all((x - xc) ** 2 + (y - yc) ** 2 > (rc * 1.5) ** 2 for xc, yc, rc, pr in circles):
+        if v / steps >= threshold and all(
+                (x - xc) ** 2 + (y - yc) ** 2 > (rc * 1.5) ** 2 for xc, yc, rc, pr in circles):
             #print(v / steps, x, y, r)
-            circles.append((x, y, r, v/steps))
+            circles.append((x, y, r, v / steps))
     return circles
+
 
 def to_array(input_image):
     array_image = np.zeros((input_image.width, input_image.height))
@@ -118,6 +122,7 @@ def to_array(input_image):
         for y1 in range(input_image.height):
             array_image[x1, y1] = image_pixels[x1, y1][0]
     return array_image
+
 
 def to_image(input_array, width, length):
     image = Image.new("RGB", [width, length])
@@ -151,7 +156,6 @@ def process_file(input_file):
         tag = 'p' + str(log_picture_number).zfill(2) + tag
         image.save(os.path.join(output_folder, filename + "_" + tag + ".png"))
         image.save(os.path.join(output_folder, tag + "_" + filename + ".png"))
-
 
     save(input_image, 'input')
     width, height = input_image.width, input_image.height
@@ -189,7 +193,6 @@ def process_file(input_file):
     #extrapolating found circle to original scale
     logo_image = get_circle_image(x0, y0, int(r0 * compression_power * 1.1), compression_power, saved_image)
 
-
     save(logo_image, 'large_circle')
     width = logo_image.width
     height = logo_image.height
@@ -210,7 +213,8 @@ def process_file(input_file):
     max_overflow = 15
     x0, y0, r0, pr0 = get_best_circle(circles, width, height, max_overflow)
 
-    x0, y0, r0 = x0 * compression_power + compression_power // 2, y0 * compression_power + compression_power // 2, int(r0 * compression_power - compression_power)
+    x0, y0, r0 = x0 * compression_power + compression_power // 2, y0 * compression_power + compression_power // 2, int(
+        r0 * compression_power * 0.98 - compression_power)
     width, height = saved_logo.width, saved_logo.height
     if r0 == 0:
         print('Error: r0 = 0')
@@ -218,22 +222,6 @@ def process_file(input_file):
 
     saved_pixels = saved_logo.load()
 
-    inner_colours = [[], [], []]
-
-    for x1 in range(-r0, r0 + 1):
-        for y1 in range(-r0, r0 + 1):
-            if ((x1) ** 2 + (y1) ** 2 <= r0 ** 2) & check_inside(r0 + x1, r0 + y1, r0, r0):
-                inner_colours[0].append(saved_pixels[x0 + x1, y0 + y1][0])
-                inner_colours[1].append(saved_pixels[x0 + x1, y0 + y1][1])
-                inner_colours[2].append(saved_pixels[x0 + x1, y0 + y1][2])
-
-    inner_colours[0].sort()
-    inner_colours[1].sort()
-    inner_colours[2].sort()
-
-    median = (inner_colours[0][len(inner_colours[0]) // 2],
-              inner_colours[1][len(inner_colours[1]) // 2],
-              inner_colours[2][len(inner_colours[2]) // 2])
     circled_image = Image.new("RGB", [2 * r0 + 1, 2 * r0 + 1])
     draw_result = ImageDraw.Draw(circled_image)
 
@@ -242,24 +230,58 @@ def process_file(input_file):
         for y1 in range(-r0, r0 + 1):
             dist = sqrt((x1 ** 2 + y1 ** 2) / (r0 ** 2))
             if check_inside(x1 + x0, y1 + y0, width, height):
-                color = (abs(median[0] - saved_pixels[x1 + x0, y1 + y0][0]) +
-                         abs(median[1] - saved_pixels[x1 + x0, y1 + y0][1]) +
-                         abs(median[2] - saved_pixels[x1 + x0, y1 + y0][2])) // 3
                 if dist >= 1:
                     draw_result.point((x1 + r0, y1 + r0), black)
-                elif dist < 0.9:
-                    draw_result.point((x1 + r0, y1 + r0), (color, color, color))
                 else:
-                    color = int(color * (10.0 - 10.0 * dist))
-                    draw_result.point((x1 + r0, y1 + r0), (color, color, color))
-
-    save(circled_image, 'trimmed')
+                    draw_result.point((x1 + r0, y1 + r0), saved_pixels[x1 + x0, y1 + y0])
 
     #resize
     circled_image = circled_image.resize(req_size)
     circled_image = circled_image.copy()
-    circled_pixels = circled_image.load()
+    saved_circle_image = circled_image.copy()
+    save(circled_image, 'circled')
+    saved_pixels = circled_image.load()
     draw_result = ImageDraw.Draw(circled_image)
+    #redrawing image to make circle big and erase blackground
+    r = (req_width / 2)
+
+    new_circled_image = Image.new("RGB", req_size)
+    draw_result = ImageDraw.Draw(new_circled_image)
+    for x1 in range(req_width):
+        for y1 in range(req_height):
+            dist = sqrt((x1 - r) ** 2 + (y1 - r) ** 2) / r
+            if dist >= 1:
+                draw_result.point((x1, y1), black)
+            else:
+                surrounding_colours = [[], [], []]
+                close_r = int(req_width * 0.02)
+                for dx in range(-close_r, close_r + 1):
+                    for dy in range(-close_r, close_r + 1):
+                        dist2 = sqrt((x1 + dx - r) ** 2 + (y1 + dy - r) ** 2) / r
+                        dist3 = sqrt(dx ** 2 + dy ** 2) / close_r
+                        if ((dist2 <= 1) and (dist3 <= 1)) and check_inside(x1 + dx, y1 + dy, req_width, req_height):
+                            surrounding_colours[0].append(saved_pixels[x1 + dx, y1 + dy][0])
+                            surrounding_colours[1].append(saved_pixels[x1 + dx, y1 + dy][1])
+                            surrounding_colours[2].append(saved_pixels[x1 + dx, y1 + dy][2])
+                surrounding_colours[0].sort()
+                surrounding_colours[1].sort()
+                surrounding_colours[2].sort()
+                median = (surrounding_colours[0][len(surrounding_colours[0]) // 2],
+                          surrounding_colours[1][len(surrounding_colours[1]) // 2],
+                          surrounding_colours[2][len(surrounding_colours[2]) // 2])
+                color = (abs(median[0] - saved_pixels[x1, y1][0]) +
+                         abs(median[1] - saved_pixels[x1, y1][1]) +
+                         abs(median[2] - saved_pixels[x1, y1][2])) // 3
+                if dist < 0.9:
+                    draw_result.point((x1, y1), (color, color, color))
+                else:
+                    color = int(color * (10.0 - 10.0 * dist))
+                    draw_result.point((x1, y1), (color, color, color))
+
+    save(new_circled_image, 'trimmed')
+
+    circled_pixels = new_circled_image.load()
+    draw_result = ImageDraw.Draw(new_circled_image)
 
     total_brightness = 0
     for x1 in range(req_width):
@@ -273,22 +295,23 @@ def process_file(input_file):
             color = int(circled_pixels[x1, y1][0] * brightness_coef)
             draw_result.point((x1, y1), (color, color, color))
 
-    save(circled_image, 'brightened')
+    save(new_circled_image, 'brightened')
 
-    circled_image = circled_image.copy()
-    circled_pixels = circled_image.load()
+    new_circled_image = new_circled_image.copy()
+    circled_pixels = new_circled_image.load()
 
-
-    morph_image = rgb2gray(circled_image)
-    blobs_log = blob_log(morph_image, min_sigma = req_width / 400, max_sigma = req_width / 170, num_sigma=10, threshold=.03)
+    morph_image = rgb2gray(new_circled_image)
+    blobs_log = blob_log(morph_image, min_sigma=req_width / 400, max_sigma=req_width / 170, num_sigma=10, threshold=.03)
     blobs_log[:, 2] = blobs_log[:, 2] * np.sqrt(2)
 
-    blobs_dog = blob_dog(morph_image, min_sigma = 1.2, max_sigma = req_width / 170, threshold=.03)
+    blobs_dog = blob_dog(morph_image, min_sigma=1.2, max_sigma=req_width / 170, threshold=.03)
     blobs_dog[:, 2] = blobs_dog[:, 2] * np.sqrt(2)
     blobs_doh = blob_doh(morph_image, max_sigma=20, threshold=.01)
 
-    log_picture = circled_image.copy()
+    log_picture = new_circled_image.copy()
     draw_result = ImageDraw.Draw(log_picture)
+
+    draw_result_bright = ImageDraw.Draw(saved_circle_image)
 
     text_file = open(os.path.join(bloblist_folder, filename + '.txt'), 'w')
     for blob in blobs_log:
@@ -298,12 +321,18 @@ def process_file(input_file):
         text_file.write(str(x) + ' ' + str(y) + ' ' + str(sigma) + "\n")
         draw_result.point((x, y), blue)
         for i in range(int(sigma)):
-            draw_result.point((x, y+i), blue)
-            draw_result.point((x, y-i), blue)
-            draw_result.point((x+i, y), blue)
-            draw_result.point((x-i, y), blue)
+            draw_result.point((x, y + i), blue)
+            draw_result.point((x, y - i), blue)
+            draw_result.point((x + i, y), blue)
+            draw_result.point((x - i, y), blue)
+            draw_result_bright.point((x, y + i), blue)
+            draw_result_bright.point((x, y - i), blue)
+            draw_result_bright.point((x + i, y), blue)
+            draw_result_bright.point((x - i, y), blue)
     save(log_picture, 'blobs_log')
+    save(saved_circle_image, 'blobs_log_colored')
     save(log_picture, 'last')
+
 
     neighbor_array = np.zeros((req_width, req_height))
     radius = 50
@@ -313,18 +342,15 @@ def process_file(input_file):
         sigma = blob[2]
         for i in range(-radius, radius + 1):
             for j in range(-radius, radius + 1):
-                if check_inside(x+i, y+j, req_height, req_width):
-                    dist = sqrt((i)**2 + (j) ** 2)
+                if check_inside(x + i, y + j, req_height, req_width):
+                    dist = sqrt((i) ** 2 + (j) ** 2)
                     if dist <= radius ** 2:
-                        neighbor_array[int(x+i), int(y+j)] += exp(-(dist + sigma)*0.1)*40
+                        neighbor_array[int(x + i), int(y + j)] += exp(-(dist + sigma) * 0.1) * 40
 
     neighbor_image = to_image(neighbor_array, req_width, req_height)
     save(neighbor_image, 'neighbors')
 
-
-
-
-    dog_picture = circled_image.copy()
+    dog_picture = new_circled_image.copy()
     draw_result = ImageDraw.Draw(dog_picture)
     for blob in blobs_dog:
         x = blob[1]
@@ -332,21 +358,19 @@ def process_file(input_file):
         sigma = blob[2]
         draw_result.point((x, y), blue)
         for i in range(int(sigma)):
-            draw_result.point((x, y+i), red)
-            draw_result.point((x, y-i), red)
-            draw_result.point((x+i, y), red)
-            draw_result.point((x-i, y), red)
+            draw_result.point((x, y + i), red)
+            draw_result.point((x, y - i), red)
+            draw_result.point((x + i, y), red)
+            draw_result.point((x - i, y), red)
     save(dog_picture, 'blobs_dog')
-
 
     x, y = [np.linspace(0, req_width - 1, req_width)] * 2
     dx, dy = [c[1] - c[0] for c in (x, y)]
     lap = Laplacian(h=[dx, dy])
 
-    circle_array = to_array(circled_image)
+    circle_array = to_array(new_circled_image)
     lap_array = lap(circle_array) * 5
     lap_image = to_image(lap_array, req_width, req_height)
-
 
     save(lap_image, 'laplacian')
 
@@ -355,14 +379,13 @@ def process_file(input_file):
     #     for y in range(req_height):
     #         circled_array[x, y] = circled_pixels[x, y][0]
 
-    # fft_image = get_fft_image(circled_image, req_height, 15, 140, -1400)
+    # fft_image = get_fft_image(new_image, req_height, 15, 140, -1400)
     # save(fft_image, 'fft')
     #
-    # grad_image = get_gradient_image(circled_image, req_width, req_height)
+    # grad_image = get_gradient_image(new_image, req_width, req_height)
     # save(grad_image, 'gradient'))
 
-
-    # draw_result = ImageDraw.Draw(circled_image)
+    # draw_result = ImageDraw.Draw(new_image)
     # found_glitter = find_small_circles(grad_image, 2, 5, 0.15)
     # for circle in found_glitter:
     #     x = circle[0]
@@ -375,7 +398,7 @@ def process_file(input_file):
     #         draw_result.point((x-i, y), blue)
     #
     #
-    # save(circled_image, 'blobs')
+    # save(new_image, 'blobs')
 
     array_image = np.zeros((req_width, req_height))
     for x1 in range(req_width):
@@ -394,12 +417,12 @@ def process_file(input_file):
 
     save(dct_image, 'dct')
 
-    phash = imagehash.phash(circled_image)
+    phash = imagehash.phash(new_circled_image)
     hash_as_str = str(phash)
     print(hash_as_str)
-    # circled_image = rotate(circled_image, 100, 256)
-    # save(circled_image, 'todo5')
-    # phash = imagehash.phash(circled_image)
+    # new_image = rotate(new_image, 100, 256)
+    # save(new_image, 'todo5')
+    # phash = imagehash.phash(new_image)
     # hash_as_str = str(phash)
     # print(hash_as_str)
 

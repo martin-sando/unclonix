@@ -425,8 +425,6 @@ def process_file(input_file):
     # phash = imagehash.phash(new_image)
     # hash_as_str = str(phash)
     # print(hash_as_str)
-
-
 def run_all():
     input_files = os.listdir(input_folder)
     for input_file in sorted(input_files):

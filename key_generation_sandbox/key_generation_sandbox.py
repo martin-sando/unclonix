@@ -141,8 +141,8 @@ def process_file(input_file):
     black = (0, 0, 0)
     blue = (0, 0, 255)
     red = (255, 0, 0)
-    req_width = 512
-    req_height = 512
+    req_width = 1024
+    req_height = 1024
     req_size = (req_width, req_height)
 
     input_image = Image.open(os.path.join(input_folder, input_file))
@@ -236,6 +236,7 @@ def process_file(input_file):
                     draw_result.point((x1 + r0, y1 + r0), saved_pixels[x1 + x0, y1 + y0])
 
     #resize
+
     circled_image = circled_image.resize(req_size)
     circled_image = circled_image.copy()
     saved_circle_image = circled_image.copy()
@@ -247,6 +248,8 @@ def process_file(input_file):
 
     new_circled_image = Image.new("RGB", req_size)
     draw_result = ImageDraw.Draw(new_circled_image)
+
+    skip_factor = req_width // 150
     for x1 in range(req_width):
         for y1 in range(req_height):
             dist = sqrt((x1 - r) ** 2 + (y1 - r) ** 2) / r
@@ -254,11 +257,13 @@ def process_file(input_file):
                 draw_result.point((x1, y1), black)
             else:
                 surrounding_colours = [[], [], []]
-                close_r = int(req_width * 0.02)
-                for dx in range(-close_r, close_r + 1):
-                    for dy in range(-close_r, close_r + 1):
-                        dist2 = sqrt((x1 + dx - r) ** 2 + (y1 + dy - r) ** 2) / r
-                        dist3 = sqrt(dx ** 2 + dy ** 2) / close_r
+                close_r = int((req_width * 0.03) / skip_factor)
+                for dx0 in range(-close_r, close_r + 1):
+                    for dy0 in range(-close_r, close_r + 1):
+                        dx = dx0 * skip_factor
+                        dy = dy0 * skip_factor
+                        dist2 = ((x1 + dx - r) ** 2 + (y1 + dy - r) ** 2) / (r ** 2)
+                        dist3 = (dx ** 2 + dy ** 2) / ((close_r * skip_factor) ** 2)
                         if ((dist2 <= 1) and (dist3 <= 1)) and check_inside(x1 + dx, y1 + dy, req_width, req_height):
                             surrounding_colours[0].append(saved_pixels[x1 + dx, y1 + dy][0])
                             surrounding_colours[1].append(saved_pixels[x1 + dx, y1 + dy][1])
@@ -288,7 +293,7 @@ def process_file(input_file):
         for y1 in range(req_height):
             total_brightness += circled_pixels[x1, y1][0]
 
-    req_brightness = 4000000
+    req_brightness = 15 * req_width * req_height
     brightness_coef = req_brightness / total_brightness
     for x1 in range(req_width):
         for y1 in range(req_height):
@@ -301,12 +306,12 @@ def process_file(input_file):
     circled_pixels = new_circled_image.load()
 
     morph_image = rgb2gray(new_circled_image)
-    blobs_log = blob_log(morph_image, min_sigma=req_width / 400, max_sigma=req_width / 170, num_sigma=10, threshold=.03)
-    blobs_log[:, 2] = blobs_log[:, 2] * np.sqrt(2)
+    blobs_log = blob_log(morph_image, min_sigma=req_width / 450, max_sigma=req_width / 190, num_sigma=10, threshold=.03, overlap=0.25)
+    blobs_log[:, 2] = (blobs_log[:, 2] * np.sqrt(2)) + 1
 
-    blobs_dog = blob_dog(morph_image, min_sigma=1.2, max_sigma=req_width / 170, threshold=.03)
-    blobs_dog[:, 2] = blobs_dog[:, 2] * np.sqrt(2)
-    blobs_doh = blob_doh(morph_image, max_sigma=20, threshold=.01)
+    # blobs_dog = blob_dog(morph_image, min_sigma=1.2, max_sigma=req_width / 170, threshold=.03)
+    # blobs_dog[:, 2] = blobs_dog[:, 2] * np.sqrt(2)
+    # blobs_doh = blob_doh(morph_image, max_sigma=20, threshold=.01)
 
     log_picture = new_circled_image.copy()
     draw_result = ImageDraw.Draw(log_picture)
@@ -352,17 +357,17 @@ def process_file(input_file):
 
     dog_picture = new_circled_image.copy()
     draw_result = ImageDraw.Draw(dog_picture)
-    for blob in blobs_dog:
-        x = blob[1]
-        y = blob[0]
-        sigma = blob[2]
-        draw_result.point((x, y), blue)
-        for i in range(int(sigma)):
-            draw_result.point((x, y + i), red)
-            draw_result.point((x, y - i), red)
-            draw_result.point((x + i, y), red)
-            draw_result.point((x - i, y), red)
-    save(dog_picture, 'blobs_dog')
+    # for blob in blobs_dog:
+    #     x = blob[1]
+    #     y = blob[0]
+    #     sigma = blob[2]
+    #     draw_result.point((x, y), blue)
+    #     for i in range(int(sigma)):
+    #         draw_result.point((x, y + i), red)
+    #         draw_result.point((x, y - i), red)
+    #         draw_result.point((x + i, y), red)
+    #         draw_result.point((x - i, y), red)
+    # save(dog_picture, 'blobs_dog')
 
     x, y = [np.linspace(0, req_width - 1, req_width)] * 2
     dx, dy = [c[1] - c[0] for c in (x, y)]

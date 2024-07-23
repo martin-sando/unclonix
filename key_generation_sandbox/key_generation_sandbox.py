@@ -138,6 +138,7 @@ def process_file(input_file):
     filename = input_file.split('.')[0]
     print('Processing ' + filename)
     white = (255, 255, 255)
+    gray = (127, 127, 127)
     black = (0, 0, 0)
     blue = (0, 0, 255)
     red = (255, 0, 0)
@@ -305,8 +306,35 @@ def process_file(input_file):
     new_circled_image = new_circled_image.copy()
     circled_pixels = new_circled_image.load()
 
+    part_size = 128
+    parts_image = Image.new("RGB", ((req_width // part_size), (req_height // part_size)))
+    draw_parts = ImageDraw.Draw(parts_image)
+    for i in range(req_width // part_size):
+        for j in range(req_height // part_size):
+            up = i * part_size
+            down = i * part_size + part_size
+            left = j * part_size
+            right = j * part_size + part_size
+
+            dist1 = sqrt((up - r) ** 2 + (left - r) ** 2) / r
+            dist2 = sqrt((down - r) ** 2 + (left - r) ** 2) / r
+            dist3 = sqrt((up - r) ** 2 + (right - r) ** 2) / r
+            dist4 = sqrt((down - r) ** 2 + (right - r) ** 2) / r
+            if (dist1 <= 1 and dist2 <= 1) and (dist3 <= 1 and dist4 <= 1):
+                discr = 0
+                for i1 in range(up, down):
+                    for j1 in range(left, right):
+                        d = i1 + j1 - up - left - (part_size - 1)
+                        discr += d * circled_pixels[i1, j1][0]
+                color = (discr // 50000) + 128
+                draw_parts.point((i, j),(color, color, color))
+            else:
+                draw_parts.point((i, j), blue)
+    save(parts_image, "partial")
+
     morph_image = rgb2gray(new_circled_image)
-    blobs_log = blob_log(morph_image, min_sigma=req_width / 450, max_sigma=req_width / 190, num_sigma=10, threshold=.03, overlap=0.25)
+    blobs_log = blob_log(morph_image, min_sigma=req_width / 450, max_sigma=req_width / 190, num_sigma=10, threshold=.03,
+                         overlap=0)
     blobs_log[:, 2] = (blobs_log[:, 2] * np.sqrt(2)) + 1
 
     # blobs_dog = blob_dog(morph_image, min_sigma=1.2, max_sigma=req_width / 170, threshold=.03)
@@ -319,11 +347,28 @@ def process_file(input_file):
     draw_result_bright = ImageDraw.Draw(saved_circle_image)
 
     text_file = open(os.path.join(bloblist_folder, filename + '.txt'), 'w')
+
+    brightened_blobs = []
     for blob in blobs_log:
         x = blob[1]
         y = blob[0]
         sigma = blob[2]
-        text_file.write(str(x) + ' ' + str(y) + ' ' + str(sigma) + "\n")
+        brightness = 0
+        for i in range(-int(sigma), int(sigma) + 1):
+            for j in range(-int(sigma), int(sigma) + 1):
+                if check_inside(x + i, y + j, req_height, req_width):
+                    dist = sqrt((i) ** 2 + (j) ** 2)
+                    if dist <= sigma ** 2:
+                        brightness += exp(-(dist / (2 * sigma))) * circled_pixels[(x, y)][0]
+        brightness = brightness / (2 * sigma * sigma)
+        brightened_blobs.append((x, y, sigma, brightness))
+
+    for blob in brightened_blobs:
+        x = blob[0]
+        y = blob[1]
+        sigma = blob[2]
+        brightness = blob[3]
+        text_file.write(str(x) + ' ' + str(y) + ' ' + str(sigma) + ' ' + str(brightness) + "\n")
         draw_result.point((x, y), blue)
         for i in range(int(sigma)):
             draw_result.point((x, y + i), blue)
@@ -338,22 +383,21 @@ def process_file(input_file):
     save(saved_circle_image, 'blobs_log_colored')
     save(log_picture, 'last')
 
-
-    neighbor_array = np.zeros((req_width, req_height))
-    radius = 50
-    for blob in blobs_log:
-        x = blob[1]
-        y = blob[0]
+    blob_array = np.zeros((req_width, req_height))
+    for blob in brightened_blobs:
+        x = blob[0]
+        y = blob[1]
         sigma = blob[2]
-        for i in range(-radius, radius + 1):
-            for j in range(-radius, radius + 1):
+        brightness = blob[3]
+        for i in range(-int(sigma), int(sigma) + 1):
+            for j in range(-int(sigma), int(sigma) + 1):
                 if check_inside(x + i, y + j, req_height, req_width):
                     dist = sqrt((i) ** 2 + (j) ** 2)
-                    if dist <= radius ** 2:
-                        neighbor_array[int(x + i), int(y + j)] += exp(-(dist + sigma) * 0.1) * 40
+                    if dist <= sigma:
+                        blob_array[int(x + i), int(y + j)] += exp(-((dist / sigma) / 2)) * brightness
 
-    neighbor_image = to_image(neighbor_array, req_width, req_height)
-    save(neighbor_image, 'neighbors')
+    blob_image = to_image(blob_array, req_width, req_height)
+    save(blob_image, 'blobs_image')
 
     dog_picture = new_circled_image.copy()
     draw_result = ImageDraw.Draw(dog_picture)
@@ -430,6 +474,8 @@ def process_file(input_file):
     # phash = imagehash.phash(new_image)
     # hash_as_str = str(phash)
     # print(hash_as_str)
+
+
 def run_all():
     input_files = os.listdir(input_folder)
     for input_file in sorted(input_files):

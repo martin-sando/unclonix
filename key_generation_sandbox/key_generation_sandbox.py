@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import cv2
+import random
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 import imagehash
-from math import sqrt, pi, cos, sin, exp
+from math import sqrt, pi, cos, sin, exp, atan2
 from canny import return_grayscale, find_circles, rotate, compute_gradient
 from collections import defaultdict
 import sys
@@ -85,6 +86,131 @@ def get_gradient_image(image, width, height):
     return grad_image
 
 
+def get_variance_image(rad_min, rad_max, image, req_width, req_height):
+    def get_queries(rad_min, rad_max):
+        queries = []
+        query = [0, 0, 0]
+        for i in range(-rad_max - 1, rad_max + 2):
+            for j in range(-rad_max - 1, rad_max + 2):
+                dist = (i ** 2 + j ** 2) / (rad_max ** 2)
+                dist2 = 2
+                if rad_min > 0:
+                    dist2 = (i ** 2 + j ** 2) / (rad_min ** 2)
+                if (dist <= 1 <= dist2):
+                    if (query == [0, 0, 0]):
+                        query = [i, j, 0]
+                else:
+                    if query != [0, 0, 0]:
+                        query[2] = j
+                        queries.append(query)
+                        query = [0, 0, 0]
+        return queries
+
+    def get_dots(rmin, rmax):
+        ans = 0
+        for i in range(-rmax - 1, rmax + 2):
+            for j in range(-rmax - 1, rmax + 2):
+                dist = (i ** 2 + j ** 2) / (rmax ** 2)
+                dist2 = 2
+                if rmin > 0:
+                    dist2 = (i ** 2 + j ** 2) / (rmin ** 2)
+                if (dist <= 1 <= dist2):
+                    ans = ans + 1
+        return ans
+
+    array_img = to_array(image)
+    array_img = array_img.copy()
+    sq_array = array_img.copy()
+    for i in range(array_img.shape[0]):
+        for j in range(array_img.shape[1]):
+            sq_array[i, j] = array_img[i, j] ** 2
+
+    prefix_array = array_img.copy()
+    for i in range(array_img.shape[0]):
+        for j in range(array_img.shape[1]):
+            if j == 0:
+                prefix_array[i, j] = array_img[i, j]
+            else:
+                prefix_array[i, j] = prefix_array[i, j - 1] + array_img[i, j]
+
+    sq_prefix_array = sq_array.copy()
+    for i in range(array_img.shape[0]):
+        for j in range(array_img.shape[1]):
+            if j == 0:
+                sq_prefix_array[i, j] = sq_array[i, j]
+            else:
+                sq_prefix_array[i, j] = sq_prefix_array[i, j - 1] + sq_array[i, j]
+
+    rad_min = 32
+    rad_max = 40
+    query_set = get_queries(rad_min, rad_max)
+    total_dots = get_dots(rad_min, rad_max)
+    variance_image = Image.new("RGB", (req_width, req_height))
+    draw_variance = ImageDraw.Draw(variance_image)
+    for x1 in range(req_width):
+        for y1 in range(req_height):
+            sum = 0
+            sq_sum = 0
+            current_dots = total_dots
+            for a, b1, b2 in query_set:
+                if x1 + a < 0:
+                    current_dots = current_dots + x1 + a
+                    a = -x1
+                if x1 + a >= req_width:
+                    current_dots = current_dots + req_width - x1 - a - 1
+                    a = req_width - x1 - 1
+                if y1 + b1 < 0:
+                    current_dots = current_dots + y1 + b1
+                    b1 = -y1
+                if y1 + b1 >= req_height:
+                    current_dots = current_dots + req_height - y1 - b1
+                    b1 = req_height - y1 - 1
+                if y1 + b2 < 0:
+                    current_dots = current_dots + y1 + b2
+                    b2 = -y1
+                if y1 + b2 >= req_height:
+                    current_dots = current_dots + req_height - y1 - b2
+                    b2 = req_height - y1 - 1
+                sum = sum + prefix_array[x1 + a, y1 + b2] - prefix_array[x1 + a, y1 + b1]
+                sq_sum = sq_sum + sq_prefix_array[x1 + a, y1 + b2] - sq_prefix_array[x1 + a, y1 + b1]
+            sum = sum / total_dots
+            sq_sum = sq_sum / total_dots
+            variance = sq_sum - sum * sum
+            color = int(variance) // 10
+            draw_variance.point((x1, y1), (color, color, color))
+    return variance_image
+
+
+def get_partial_image(image, r, req_width, req_height):
+    blue = (0, 0, 255)
+    pixels = image.load()
+    part_size = 128
+    parts_image = Image.new("RGB", ((req_width // part_size), (req_height // part_size)))
+    draw_parts = ImageDraw.Draw(parts_image)
+    for i in range(req_width // part_size):
+        for j in range(req_height // part_size):
+            up = i * part_size
+            down = i * part_size + part_size
+            left = j * part_size
+            right = j * part_size + part_size
+
+            dist1 = sqrt((up - r) ** 2 + (left - r) ** 2) / r
+            dist2 = sqrt((down - r) ** 2 + (left - r) ** 2) / r
+            dist3 = sqrt((up - r) ** 2 + (right - r) ** 2) / r
+            dist4 = sqrt((down - r) ** 2 + (right - r) ** 2) / r
+            if (dist1 <= 1 and dist2 <= 1) and (dist3 <= 1 and dist4 <= 1):
+                discr = 0
+                for i1 in range(up, down):
+                    for j1 in range(left, right):
+                        d = i1 + j1 - up - left - (part_size - 1)
+                        discr += d * pixels[i1, j1][0]
+                color = (discr // 50000) + 128
+                draw_parts.point((i, j), (color, color, color))
+            else:
+                draw_parts.point((i, j), blue)
+    return parts_image
+
+
 def find_small_circles(input_image, rmin, rmax, precision):
     steps = 10
     threshold = precision * 255
@@ -135,6 +261,8 @@ def to_image(input_array, width, length):
 
 
 def process_file(input_file):
+    random.seed(566)
+    hru = [random.gauss(mu=0.0, sigma=1.0) for _ in range(64)]
     filename = input_file.split('.')[0]
     print('Processing ' + filename)
     white = (255, 255, 255)
@@ -258,7 +386,7 @@ def process_file(input_file):
                 draw_result.point((x1, y1), black)
             else:
                 surrounding_colours = [[], [], []]
-                close_r = int((req_width * 0.03) / skip_factor)
+                close_r = int((req_width * 0.02) / skip_factor)
                 for dx0 in range(-close_r, close_r + 1):
                     for dy0 in range(-close_r, close_r + 1):
                         dx = dx0 * skip_factor
@@ -306,35 +434,39 @@ def process_file(input_file):
     new_circled_image = new_circled_image.copy()
     circled_pixels = new_circled_image.load()
 
-    part_size = 128
-    parts_image = Image.new("RGB", ((req_width // part_size), (req_height // part_size)))
-    draw_parts = ImageDraw.Draw(parts_image)
-    for i in range(req_width // part_size):
-        for j in range(req_height // part_size):
-            up = i * part_size
-            down = i * part_size + part_size
-            left = j * part_size
-            right = j * part_size + part_size
+    sector_size = 128
+    sector_i = 4
+    sector_j = 4
+    sector_image = Image.new("RGB", [sector_size, sector_size])
+    draw_sector = ImageDraw.Draw(sector_image)
+    for i in range(sector_i * sector_size, sector_i * sector_size + sector_size):
+        for j in range(sector_j * sector_size, sector_j * sector_size + sector_size):
+            draw_sector.point((i - sector_i * sector_size, j - sector_j * sector_size), circled_pixels[i, j])
+    save(sector_image, "sector")
 
-            dist1 = sqrt((up - r) ** 2 + (left - r) ** 2) / r
-            dist2 = sqrt((down - r) ** 2 + (left - r) ** 2) / r
-            dist3 = sqrt((up - r) ** 2 + (right - r) ** 2) / r
-            dist4 = sqrt((down - r) ** 2 + (right - r) ** 2) / r
-            if (dist1 <= 1 and dist2 <= 1) and (dist3 <= 1 and dist4 <= 1):
-                discr = 0
-                for i1 in range(up, down):
-                    for j1 in range(left, right):
-                        d = i1 + j1 - up - left - (part_size - 1)
-                        discr += d * circled_pixels[i1, j1][0]
-                color = (discr // 50000) + 128
-                draw_parts.point((i, j),(color, color, color))
-            else:
-                draw_parts.point((i, j), blue)
-    save(parts_image, "partial")
+    compress_size = 8
+    sector_pixels = sector_image.load()
+    save(sector_image, "sector_compressed")
+
+    dct_size = 8
+
+    array_sector = np.zeros((sector_size, sector_size))
+    for x1 in range(sector_size):
+        for y1 in range(sector_size):
+            array_sector[x1, y1] = sector_pixels[x1, y1][0] + 0.0
+    dct_array = cv2.dct(array_sector)
+    dct_image = Image.new("RGB", [dct_size, dct_size])
+    draw_result = ImageDraw.Draw(dct_image)
+    for x1 in range(dct_size):
+        for y1 in range(dct_size):
+            color = int(dct_array[x1, y1])
+            draw_result.point((x1, y1), (color, color, color))
+
+    save(dct_image, 'dct_sector')
 
     morph_image = rgb2gray(new_circled_image)
     blobs_log = blob_log(morph_image, min_sigma=req_width / 450, max_sigma=req_width / 190, num_sigma=10, threshold=.03,
-                         overlap=0)
+                         overlap=0.5)
     blobs_log[:, 2] = (blobs_log[:, 2] * np.sqrt(2)) + 1
 
     # blobs_dog = blob_dog(morph_image, min_sigma=1.2, max_sigma=req_width / 170, threshold=.03)
@@ -382,6 +514,65 @@ def process_file(input_file):
     save(log_picture, 'blobs_log')
     save(saved_circle_image, 'blobs_log_colored')
     save(log_picture, 'last')
+
+    counter = 0
+
+    dct_arrays = []
+    good_blobs = []
+    pigs = []
+    for blob in brightened_blobs:
+        dist = sqrt((blob[0]-r)**2 + (blob[1]-r)**2) / r
+        if dist < 0.2 or dist > 0.8:
+            continue
+        angle = atan2((blob[1] - r), (blob[0] - r))
+
+        if blob[1] - r < 0:
+            angle += pi
+
+        blob_img = new_circled_image.crop((blob[0] - 128, blob[1] - 128, blob[0] + 128, blob[1] + 128))
+        rot_image = blob_img.rotate(360 - angle * (180 / pi))
+        blob_img = rot_image.crop((64, 64, 192, 192))
+        blob_pixels = blob_img.load()
+
+        array_image = np.zeros((128, 128))
+        for x1 in range(128):
+            for y1 in range(128):
+                array_image[x1, y1] = blob_pixels[x1, y1][0] + 0.0
+
+        dct_array = cv2.dct(array_image)
+
+        dct_size = 8
+        pig = dct_array[1][1]
+
+        dct_arrays.append(pig)
+        pigs.append(pig)
+        good_blobs.append((blob[0], blob[1], blob[2], blob[3], pig))
+
+    log_picture = new_circled_image.copy()
+    draw_result = ImageDraw.Draw(log_picture)
+    pigs.sort()
+    denominator = pigs[len(pigs) - 5]
+
+    for blob in good_blobs:
+        x = blob[0]
+        y = blob[1]
+        sigma = blob[2]
+        brightness = blob[3]
+        color = (int(128 + blob[4] // 10), 0, int(128 - blob[4] // 10))
+        text_file.write(str(x) + ' ' + str(y) + ' ' + str(sigma) + ' ' + str(brightness) + "\n")
+        draw_result.point((x, y), color)
+        for i in range(int(sigma)):
+            draw_result.point((x, y + i), color)
+            draw_result.point((x, y - i), color)
+            draw_result.point((x + i, y), color)
+            draw_result.point((x - i, y), color)
+            draw_result_bright.point((x, y + i), color)
+            draw_result_bright.point((x, y - i), color)
+            draw_result_bright.point((x + i, y), color)
+            draw_result_bright.point((x - i, y), color)
+    save(log_picture, 'good_blobs_log')
+    save(saved_circle_image, 'good_blobs_log_colored')
+
 
     blob_array = np.zeros((req_width, req_height))
     for blob in brightened_blobs:

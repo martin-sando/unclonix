@@ -259,6 +259,68 @@ def to_image(input_array, width, length):
             draw_result.point((x1, y1), (color, color, color))
     return image
 
+def get_field_image(input_image, width, height, precision, hru):
+    r = width // 2
+    result_array = np.zeros((width, height))
+    for x in range(width // precision):
+        for y in range(height // precision):
+            coord_0 = x * precision
+            coord_1 = y * precision
+            dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
+            if dist > 0.8:
+                continue
+            angle = atan2((coord_1 - r), (coord_0 - r))
+
+            if y - r < 0:
+                angle += pi
+
+            blob_img = input_image.crop((coord_0 - 128, coord_1 - 128, coord_0 + 128, coord_1 + 128))
+            rot_image = blob_img.rotate(360 - angle * (180 / pi))
+            blob_img = rot_image.crop((64, 64, 192, 192))
+            blob_pixels = blob_img.load()
+
+            array_image = np.zeros((128, 128))
+            for x1 in range(128):
+                for y1 in range(128):
+                    array_image[x1, y1] = blob_pixels[x1, y1][0] + 0.0
+
+            dct_array = cv2.dct(array_image)
+
+            pig = 0
+            dct_size = 8
+            for i in range(3):
+                for j in range(3):
+                    pig = pig + dct_array[i + 4, j + 4] * hru[i * 3 + j]
+
+            result_array[coord_0, coord_1] = pig
+    for x in range(width // precision):
+        for y in range(height // precision):
+            for x1 in range(precision):
+                for y1 in range(precision):
+                    if x1 + y1 == 0:
+                        continue
+                    coord_0 = x * precision + x1
+                    coord_1 = y * precision + y1
+                    dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
+                    if dist > 0.8:
+                        continue
+                    comp_1 = result_array[x * precision, y * precision] * (1 - x1 / precision) * (1 - y1 / precision)
+                    comp_2 = result_array[x * precision, y * precision + precision] * (1 - x1 / precision) * (y1 / precision)
+                    comp_3 = result_array[x * precision + precision, y * precision] * (x1 / precision) * (1 - y1 / precision)
+                    comp_4 = result_array[x * precision + precision, y * precision + precision] * (x1 / precision) * (y1 / precision)
+                    result_array[coord_0, coord_1] = comp_1 + comp_2 + comp_3 + comp_4
+    field_image = Image.new("RGB", [width, height])
+    draw_result = ImageDraw.Draw(field_image)
+    for x in range(width):
+        for y in range(height):
+            dist = sqrt((x - r) ** 2 + (y - r) ** 2) / r
+            color = (0, 0, 0)
+            if  dist < 0.8:
+                color = (int(128 + result_array[x, y] // 10), 0, int(128 - result_array[x, y] // 10))
+            draw_result.point((x, y), color)
+    return field_image
+
+
 
 def process_file(input_file):
     random.seed(566)
@@ -434,6 +496,9 @@ def process_file(input_file):
     new_circled_image = new_circled_image.copy()
     circled_pixels = new_circled_image.load()
 
+    field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru)
+    save(field_image, 'field_image')
+
     sector_size = 128
     sector_i = 4
     sector_j = 4
@@ -574,7 +639,33 @@ def process_file(input_file):
             return (worst2 - this) / (worst2 - best2)
         return 0
 
+    scored_blobs = []
     for blob in good_blobs:
+        sigma = blob[2]
+        dist = sqrt((blob[0] - r) ** 2 + (blob[1] - r) ** 2) / r
+        score = linear_score(sigma, 5.5, 8)
+        score = score + linear_score(blob[4], 300, 1200)
+        score = score + linear_score2(dist, 0.45, 0.5, 0.7, 0.75)
+        scored_blobs.append((blob[0], blob[1], blob[2], blob[3], blob[4], score))
+
+    while True:
+        new_blobs = []
+        for blob in scored_blobs:
+            cur_blob = blob
+            for blob2 in scored_blobs:
+                distance = (cur_blob[0] - blob2[0]) ** 2 + (cur_blob[1] - blob2[1])**2
+                if distance < 3000:
+                    if cur_blob[5] < (blob2[5] - 0.1):
+                        cur_blob = (0, 0, 0, 0, 0, 0)
+                        break
+            if cur_blob[0] != 0:
+                new_blobs.append(cur_blob)
+        if len(new_blobs) != len(scored_blobs):
+            scored_blobs = new_blobs
+        else:
+            break
+
+    for blob in scored_blobs:
         x = blob[0]
         y = blob[1]
         sigma = blob[2]
@@ -583,20 +674,19 @@ def process_file(input_file):
         score = linear_score(sigma, 5.5, 8)
         score = score + linear_score(blob[4], 300, 1200)
         score = score + linear_score2(dist, 0.45, 0.5, 0.7, 0.75)
-        if score > 2.3:
-            color = (int(128 + blob[4] // 10), 0, int(128 - blob[4] // 10))
-            text_file.write(
-                str(x) + ' ' + str(y) + ' ' + str(sigma) + ' ' + str(brightness) + ' ' + str(blob[4]) + "\n")
-            draw_result.point((x, y), color)
-            for i in range(int(sigma)):
-                draw_result.point((x, y + i), color)
-                draw_result.point((x, y - i), color)
-                draw_result.point((x + i, y), color)
-                draw_result.point((x - i, y), color)
-                draw_result_bright.point((x, y + i), color)
-                draw_result_bright.point((x, y - i), color)
-                draw_result_bright.point((x + i, y), color)
-                draw_result_bright.point((x - i, y), color)
+        color = (int(128 + blob[4] // 10), 0, int(128 - blob[4] // 10))
+        text_file.write(
+            str(x) + ' ' + str(y) + ' ' + str(sigma) + ' ' + str(brightness) + ' ' + str(blob[4]) + "\n")
+        draw_result.point((x, y), color)
+        for i in range(int(sigma)):
+            draw_result.point((x, y + i), color)
+            draw_result.point((x, y - i), color)
+            draw_result.point((x + i, y), color)
+            draw_result.point((x - i, y), color)
+            draw_result_bright.point((x, y + i), color)
+            draw_result_bright.point((x, y - i), color)
+            draw_result_bright.point((x + i, y), color)
+            draw_result_bright.point((x - i, y), color)
     save(log_picture, 'good_blobs_log')
     save(saved_circle_image, 'good_blobs_log_colored')
 

@@ -259,7 +259,7 @@ def to_image(input_array, width, length):
             draw_result.point((x1, y1), (color, color, color))
     return image
 
-def get_field_image(input_image, width, height, precision, hru):
+def get_field_image(input_image, width, height, precision, hru, filename):
     r = width // 2
     result_array = np.zeros((width, height))
     for x in range(width // precision):
@@ -270,14 +270,12 @@ def get_field_image(input_image, width, height, precision, hru):
             if dist > 0.8:
                 continue
             angle = atan2((coord_1 - r), (coord_0 - r))
-
-            if y - r < 0:
-                angle += pi
-
             blob_img = input_image.crop((coord_0 - 128, coord_1 - 128, coord_0 + 128, coord_1 + 128))
-            rot_image = blob_img.rotate(360 - angle * (180 / pi))
+            rot_image = blob_img.rotate((angle * (180 / pi)))
             blob_img = rot_image.crop((64, 64, 192, 192))
             blob_pixels = blob_img.load()
+
+
 
             array_image = np.zeros((128, 128))
             for x1 in range(128):
@@ -290,7 +288,7 @@ def get_field_image(input_image, width, height, precision, hru):
             dct_size = 8
             for i in range(3):
                 for j in range(3):
-                    pig = pig + dct_array[i + 4, j + 4] * hru[i * 3 + j]
+                    pig = pig + dct_array[i+4, j+4] * hru[i * 3 + j]
 
             result_array[coord_0, coord_1] = pig
     for x in range(width // precision):
@@ -496,8 +494,9 @@ def process_file(input_file):
     new_circled_image = new_circled_image.copy()
     circled_pixels = new_circled_image.load()
 
-    field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru)
+    field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru, filename)
     save(field_image, 'field_image')
+
 
     sector_size = 128
     sector_i = 4

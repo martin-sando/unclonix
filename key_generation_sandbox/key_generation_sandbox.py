@@ -521,7 +521,7 @@ def process_file(input_file):
     good_blobs = []
     pigs = []
     for blob in brightened_blobs:
-        dist = sqrt((blob[0]-r)**2 + (blob[1]-r)**2) / r
+        dist = sqrt((blob[0] - r) ** 2 + (blob[1] - r) ** 2) / r
         if dist < 0.2 or dist > 0.8:
             continue
         angle = atan2((blob[1] - r), (blob[0] - r))
@@ -541,8 +541,11 @@ def process_file(input_file):
 
         dct_array = cv2.dct(array_image)
 
+        pig = 0
         dct_size = 8
-        pig = dct_array[1][1]
+        for i in range(3):
+            for j in range(3):
+                pig = pig + dct_array[i + 4, j + 4] * hru[i * 3 + j]
 
         dct_arrays.append(pig)
         pigs.append(pig)
@@ -553,26 +556,49 @@ def process_file(input_file):
     pigs.sort()
     denominator = pigs[len(pigs) - 5]
 
+    def linear_score(this, worst, best):
+        if this < worst:
+            return 0
+        if this > best:
+            return 1
+        return (this - worst) / (best - worst)
+
+    def linear_score2(this, worst1, best1, best2, worst2):
+        if this < worst1:
+            return 0
+        if worst1 < this < best1:
+            return (this - worst1) / (best1 - worst1)
+        if best1 < this < best2:
+            return 1
+        if best2 < this < worst2:
+            return (worst2 - this) / (worst2 - best2)
+        return 0
+
     for blob in good_blobs:
         x = blob[0]
         y = blob[1]
         sigma = blob[2]
         brightness = blob[3]
-        color = (int(128 + blob[4] // 10), 0, int(128 - blob[4] // 10))
-        text_file.write(str(x) + ' ' + str(y) + ' ' + str(sigma) + ' ' + str(brightness) + "\n")
-        draw_result.point((x, y), color)
-        for i in range(int(sigma)):
-            draw_result.point((x, y + i), color)
-            draw_result.point((x, y - i), color)
-            draw_result.point((x + i, y), color)
-            draw_result.point((x - i, y), color)
-            draw_result_bright.point((x, y + i), color)
-            draw_result_bright.point((x, y - i), color)
-            draw_result_bright.point((x + i, y), color)
-            draw_result_bright.point((x - i, y), color)
+        dist = sqrt((blob[0] - r) ** 2 + (blob[1] - r) ** 2) / r
+        score = linear_score(sigma, 5.5, 8)
+        score = score + linear_score(blob[4], 300, 1200)
+        score = score + linear_score2(dist, 0.45, 0.5, 0.7, 0.75)
+        if score > 2.3:
+            color = (int(128 + blob[4] // 10), 0, int(128 - blob[4] // 10))
+            text_file.write(
+                str(x) + ' ' + str(y) + ' ' + str(sigma) + ' ' + str(brightness) + ' ' + str(blob[4]) + "\n")
+            draw_result.point((x, y), color)
+            for i in range(int(sigma)):
+                draw_result.point((x, y + i), color)
+                draw_result.point((x, y - i), color)
+                draw_result.point((x + i, y), color)
+                draw_result.point((x - i, y), color)
+                draw_result_bright.point((x, y + i), color)
+                draw_result_bright.point((x, y - i), color)
+                draw_result_bright.point((x + i, y), color)
+                draw_result_bright.point((x - i, y), color)
     save(log_picture, 'good_blobs_log')
     save(saved_circle_image, 'good_blobs_log_colored')
-
 
     blob_array = np.zeros((req_width, req_height))
     for blob in brightened_blobs:

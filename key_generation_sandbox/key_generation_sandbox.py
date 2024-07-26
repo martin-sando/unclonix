@@ -259,7 +259,7 @@ def to_image(input_array, width, length):
             draw_result.point((x1, y1), (color, color, color))
     return image
 
-def get_field_image(input_image, width, height, precision, hru, filename):
+def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cell):
     r = width // 2
     result_array = np.zeros((width, height))
     for x in range(width // precision):
@@ -286,9 +286,12 @@ def get_field_image(input_image, width, height, precision, hru, filename):
 
             pig = 0
             dct_size = 8
-            for i in range(3):
-                for j in range(3):
-                    pig = pig + dct_array[i+4, j+4] * hru[i * 3 + j]
+            if not cell:
+                for i in range(low_b, up_b + 1):
+                    for j in range(low_b, up_b + 1):
+                        pig = pig + dct_array[i, j] * hru[(i - low_b) * (up_b - low_b + 1) + (j - low_b)]
+            else:
+                pig = pig + dct_array[low_b, up_b]
 
             result_array[coord_0, coord_1] = pig
     for x in range(width // precision):
@@ -314,13 +317,13 @@ def get_field_image(input_image, width, height, precision, hru, filename):
             dist = sqrt((x - r) ** 2 + (y - r) ** 2) / r
             color = (0, 0, 0)
             if  dist < 0.8:
-                color = (int(128 + result_array[x, y] // 10), 0, int(128 - result_array[x, y] // 10))
+                color = (int(128 + result_array[x, y] // 20), 0, int(128 - result_array[x, y] // 20))
             draw_result.point((x, y), color)
     return field_image
 
 
 
-def process_file(input_file):
+def process_file(input_file, full_research_mode):
     random.seed(566)
     hru = [random.gauss(mu=0.0, sigma=1.0) for _ in range(64)]
     filename = input_file.split('.')[0]
@@ -493,9 +496,19 @@ def process_file(input_file):
 
     new_circled_image = new_circled_image.copy()
     circled_pixels = new_circled_image.load()
+    
+    pairs = [(0, 1), (0, 2), (0, 3), (0, 6), (1, 2), (1, 3), (1, 5), (2, 3), (2, 4), (3, 5), (3, 7), (4, 6), (5, 7), (6, 8), (7, 10)]
+    dots = [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2), (2, 3), (3, 3), (3, 5), (4, 4), (4, 6), (5, 5), (5, 8)]
 
-    field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru, filename)
-    save(field_image, 'field_image')
+    for pair in pairs:
+        field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru, pair[0], pair[1], False)
+        save(field_image, 'field_image_array' + str(pair[0]) + '..' + str(pair[1]))
+
+    for dot in dots:
+        field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru, dot[0], dot[1], True)
+        save(field_image, 'field_image_dot' + str(dot[0]) + '.' + str(dot[1]))
+    if not full_research_mode:
+        return
 
 
     sector_size = 128
@@ -787,7 +800,7 @@ def run_all():
     for input_file in sorted(input_files)[::-1]:
         if '~' in input_file:
             continue
-        process_file(input_file)
+        process_file(input_file, False)
 
 
 if __name__ == '__main__':

@@ -259,9 +259,11 @@ def to_image(input_array, width, length):
             draw_result.point((x1, y1), (color, color, color))
     return image
 
-def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cell):
+
+def get_field_image(input_image, width, height, precision, hru, hru2, hru3, low_b, up_b, cell, cutter_size=128):
+    text_file = open(os.path.join(bloblist_folder, 'dct' + '.txt'), 'w')
     r = width // 2
-    result_array = np.zeros((width, height))
+    result_array = np.zeros((width, height, 3))
     for x in range(width // precision):
         for y in range(height // precision):
             coord_0 = x * precision
@@ -270,30 +272,39 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
             if dist > 0.8:
                 continue
             angle = atan2((coord_1 - r), (coord_0 - r))
-            blob_img = input_image.crop((coord_0 - 128, coord_1 - 128, coord_0 + 128, coord_1 + 128))
+            blob_img = input_image.crop(
+                (coord_0 - cutter_size, coord_1 - cutter_size, coord_0 + cutter_size, coord_1 + cutter_size))
             rot_image = blob_img.rotate((angle * (180 / pi)))
-            blob_img = rot_image.crop((64, 64, 192, 192))
+            blob_img = rot_image.crop(
+                (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
             blob_pixels = blob_img.load()
 
-
-
-            array_image = np.zeros((128, 128))
-            for x1 in range(128):
-                for y1 in range(128):
+            array_image = np.zeros((cutter_size, cutter_size))
+            for x1 in range(cutter_size):
+                for y1 in range(cutter_size):
                     array_image[x1, y1] = blob_pixels[x1, y1][0] + 0.0
 
             dct_array = cv2.dct(array_image)
-
             pig = 0
+            pig2 = 0
+            pig3 = 0
             dct_size = 8
             if not cell:
                 for i in range(low_b, up_b + 1):
                     for j in range(low_b, up_b + 1):
                         pig = pig + dct_array[i, j] * hru[(i - low_b) * (up_b - low_b + 1) + (j - low_b)]
+            if not cell:
+                for i in range(low_b, up_b + 1):
+                    for j in range(low_b + 2, up_b + 3):
+                        pig2 = pig2 + dct_array[i, j] * hru[(i - low_b) * (up_b - low_b + 1) + (j - low_b)]
+            if not cell:
+                for i in range(low_b + 2, up_b + 3):
+                    for j in range(low_b, up_b + 1):
+                        pig3 = pig3 + dct_array[i, j] * hru[(i - low_b) * (up_b - low_b + 1) + (j - low_b)]
             else:
                 pig = pig + dct_array[low_b, up_b]
 
-            result_array[coord_0, coord_1] = pig
+            result_array[coord_0, coord_1] = (pig, pig2, pig3)
     for x in range(width // precision):
         for y in range(height // precision):
             for x1 in range(precision):
@@ -306,26 +317,117 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
                     if dist > 0.8:
                         continue
                     comp_1 = result_array[x * precision, y * precision] * (1 - x1 / precision) * (1 - y1 / precision)
-                    comp_2 = result_array[x * precision, y * precision + precision] * (1 - x1 / precision) * (y1 / precision)
-                    comp_3 = result_array[x * precision + precision, y * precision] * (x1 / precision) * (1 - y1 / precision)
-                    comp_4 = result_array[x * precision + precision, y * precision + precision] * (x1 / precision) * (y1 / precision)
+                    comp_2 = result_array[x * precision, y * precision + precision] * (1 - x1 / precision) * (
+                                y1 / precision)
+                    comp_3 = result_array[x * precision + precision, y * precision] * (x1 / precision) * (
+                                1 - y1 / precision)
+                    comp_4 = result_array[x * precision + precision, y * precision + precision] * (x1 / precision) * (
+                                y1 / precision)
                     result_array[coord_0, coord_1] = comp_1 + comp_2 + comp_3 + comp_4
     field_image = Image.new("RGB", [width, height])
     draw_result = ImageDraw.Draw(field_image)
+    total_sum1 = 0
+    total_sum2 = 0
+    total_sum3 = 0
+    for x in range(width):
+        for y in range(height):
+            total_sum1 += abs(result_array[x, y][0])
+            total_sum2 += abs(result_array[x, y][1])
+            total_sum3 += abs(result_array[x, y][2])
+
+    scaling1 = int(total_sum1 / 50000000)
+    scaling2 = int(total_sum2 / 50000000)
+    scaling3 = int(total_sum3 / 50000000)
     for x in range(width):
         for y in range(height):
             dist = sqrt((x - r) ** 2 + (y - r) ** 2) / r
             color = (0, 0, 0)
-            if  dist < 0.8:
-                color = (int(128 + result_array[x, y] // 20), 0, int(128 - result_array[x, y] // 20))
+            if dist < 0.8:
+                color = (int(128 + result_array[x, y][0] // scaling1), int(128 + result_array[x, y][1] // scaling2), int(128 + result_array[x, y][2] // scaling3))
             draw_result.point((x, y), color)
     return field_image
 
+
+def get_angle_image(input_image, width, height, precision, mode, cutter_size=64):
+    r = width // 2
+    result_array = np.zeros((width, height))
+    for x in range(width // precision):
+        for y in range(height // precision):
+            coord_0 = x * precision
+            coord_1 = y * precision
+            dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
+            if dist > 0.7:
+                continue
+            angle = atan2((coord_1 - r), (coord_0 - r))
+            blob_img = input_image.crop(
+                (coord_0 - cutter_size, coord_1 - cutter_size, coord_0 + cutter_size, coord_1 + cutter_size))
+            rot_image = blob_img.rotate((angle * (180 / pi)))
+            blob_img = rot_image.crop(
+                (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
+            blob_pixels = blob_img.load()
+
+            array_image = np.zeros((cutter_size, cutter_size))
+            for x1 in range(cutter_size):
+                for y1 in range(cutter_size):
+                    array_image[x1, y1] = blob_pixels[x1, y1][0] + 0.0
+
+            score1 = 0
+            if mode == "r" or mode == "both":
+                for x1 in range(cutter_size):
+                    for y1 in range(cutter_size // 2):
+                        y2 = cutter_size - 1 - y1
+                        score1 += abs(array_image[x1, y1] - 128) + abs(array_image[x1, y2] - 128) - 2.5 * abs(
+                            array_image[x1, y1] - array_image[x1, y2])
+                score1 = max(score1, 0)
+
+            score2 = 0
+            if mode == "arc" or mode == "both":
+                for x1 in range(cutter_size // 2):
+                    for y1 in range(cutter_size):
+                        x2 = cutter_size - 1 - x1
+                        score2 += abs(array_image[x1, y1] - 128) + abs(array_image[x2, y1] - 128) - 2.5 * abs(
+                            array_image[x1, y1] - array_image[x2, y1])
+                score2 = max(score2, 0)
+            result_array[coord_0, coord_1] = min(score1, score2)
+
+
+    for x in range(width // precision):
+        for y in range(height // precision):
+            for x1 in range(precision):
+                for y1 in range(precision):
+                    if x1 + y1 == 0:
+                        continue
+                    coord_0 = x * precision + x1
+                    coord_1 = y * precision + y1
+                    dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
+                    if dist > 0.7:
+                        continue
+                    comp_1 = result_array[x * precision, y * precision] * (1 - x1 / precision) * (1 - y1 / precision)
+                    comp_2 = result_array[x * precision, y * precision + precision] * (1 - x1 / precision) * (
+                            y1 / precision)
+                    comp_3 = result_array[x * precision + precision, y * precision] * (x1 / precision) * (
+                            1 - y1 / precision)
+                    comp_4 = result_array[x * precision + precision, y * precision + precision] * (x1 / precision) * (
+                            y1 / precision)
+                    result_array[coord_0, coord_1] = comp_1 + comp_2 + comp_3 + comp_4
+    field_image = Image.new("RGB", [width, height])
+    draw_result = ImageDraw.Draw(field_image)
+    scaling = (cutter_size * cutter_size) * 0.1
+    for x in range(width):
+        for y in range(height):
+            dist = sqrt((x - r) ** 2 + (y - r) ** 2) / r
+            color = 0
+            if dist < 0.7:
+                color = int(result_array[x, y] / scaling)
+            draw_result.point((x, y), (color, color, color))
+    return field_image
 
 
 def process_file(input_file, full_research_mode):
     random.seed(566)
     hru = [random.gauss(mu=0.0, sigma=1.0) for _ in range(64)]
+    hru2 = [random.gauss(mu=0.0, sigma=1.0) for _ in range(64)]
+    hru3 = [random.gauss(mu=0.0, sigma=1.0) for _ in range(64)]
     filename = input_file.split('.')[0]
     print('Processing ' + filename)
     white = (255, 255, 255)
@@ -496,20 +598,131 @@ def process_file(input_file, full_research_mode):
 
     new_circled_image = new_circled_image.copy()
     circled_pixels = new_circled_image.load()
-    
-    pairs = [(0, 1), (0, 2), (0, 3), (0, 6), (1, 2), (1, 3), (1, 5), (2, 3), (2, 4), (3, 5), (3, 7), (4, 6), (5, 7), (6, 8), (7, 10)]
-    dots = [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2), (2, 3), (3, 3), (3, 5), (4, 4), (4, 6), (5, 5), (5, 8)]
 
-    for pair in pairs:
-        field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru, pair[0], pair[1], False)
-        save(field_image, 'field_image_array' + str(pair[0]) + '..' + str(pair[1]))
+    pairs = [(2, 4)]
+    dots = []
 
-    for dot in dots:
-        field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru, dot[0], dot[1], True)
-        save(field_image, 'field_image_dot' + str(dot[0]) + '.' + str(dot[1]))
+    # for pair in pairs:
+    #     field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru, pair[0], pair[1], False)
+    #     save(field_image, 'field_image_array' + str(pair[0]) + '..' + str(pair[1]))
+    #     angle_image = get_angle_image(field_image, req_width, req_height, mode="both", precision=5)
+    #     save(angle_image, 'angle_image_array' + str(pair[0]) + '..' + str(pair[1]))
+    #
+    # for dot in dots:
+    #     field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru, dot[0], dot[1], True)
+    #     save(field_image, 'field_image_dot' + str(dot[0]) + '.' + str(dot[1]))
+    #     angle_image = get_angle_image(field_image, req_width, req_height, mode="both", precision=5)
+    #     save(angle_image, 'angle_image_array' + str(dot[0]) + '..' + str(dot[1]))
+
+    field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru, hru2, hru3, 1, 3, False)
+    save(field_image, 'field_image_array' + '2' + '..' + '4')
+    angle_image = get_angle_image(field_image, req_width, req_height, mode="both", precision=5)
+    save(angle_image, 'angle_image_array' + '2' + '..' + '4')
+
+    # filtered_image = Image.new("RGB", req_size)
+    # draw_result = ImageDraw.Draw(filtered_image)
+    # saved_pixels = angle_image.load()
+    # for x1 in range(req_width):
+    #     for y1 in range(req_height):
+    #         if (saved_pixels[x1, y1][0] > 250):
+    #             draw_result.point((x1, y1), white)
+    #         elif (saved_pixels[x1, y1][0] > 200):
+    #             for x2 in range(-10, 10):
+    #                 for y2 in range(-10, 10):
+    #                     if (saved_pixels[x1+x2, y1+y2][0] > 250):
+    #                         draw_result.point((x1, y1), white)
+    #
+    # save(filtered_image, 'fitlered')
+
+
+
+    morph_image = rgb2gray(angle_image)
+    blobs_log = blob_log(morph_image, min_sigma=1, max_sigma=req_width / 190, num_sigma=10, threshold=.10,
+                         overlap=0.5)
+    blobs_log[:, 2] = (blobs_log[:, 2] * np.sqrt(2)) + 1
+
+    dot_image = angle_image.copy()
+    draw_result = ImageDraw.Draw(dot_image)
+    transformed_blobs = []
+
+    for blob in blobs_log:
+        transformed_blobs.append((blob[1], blob[0], blob[2]))
+    blobs_log = transformed_blobs
+    for blob in blobs_log:
+        x = blob[0]
+        y = blob[1]
+        sigma = blob[2]
+        draw_result.point((x, y), blue)
+        for i in range(int(sigma)):
+            draw_result.point((x, y + i), blue)
+            draw_result.point((x, y - i), blue)
+            draw_result.point((x + i, y), blue)
+            draw_result.point((x - i, y), blue)
+
+    save(dot_image, "dots")
+
+    best_score = 1000
+    best_blobs = []
+    for blob1 in blobs_log:
+        for blob2 in blobs_log:
+            if blob1[0] == blob2[0] and blob1[1] == blob2[1]:
+                continue
+            for blob3 in blobs_log:
+                if (blob1[0] == blob3[0] and blob1[1] == blob3[1]) or (blob2[0] == blob3[0] and blob2[1] == blob3[1]):
+                    continue
+                coord1 = (blob1[0] - req_width // 2, blob1[1] - req_height // 2)
+                coord2 = (blob2[0] - req_width // 2, blob2[1] - req_height // 2)
+                coord3 = (blob3[0] - req_width // 2, blob3[1] - req_height // 2)
+                dist1 = sqrt((coord1[0]) ** 2 + (coord1[1]) ** 2) / r
+                dist2 = sqrt((coord2[0]) ** 2 + (coord2[1]) ** 2) / r
+                dist3 = sqrt((coord3[0]) ** 2 + (coord3[1]) ** 2) / r
+                dist_12 = sqrt((coord1[0] - coord2[0]) ** 2 + (coord1[1] - coord2[1]) ** 2)
+                if ((0.4 < dist1 < 0.6) and (0.4 < dist2 < 0.6)) and ((0.4 < dist3 < 0.6) and dist_12 > 300):
+                    angle1 = atan2(coord2[1] - coord1[1], coord2[0] - coord1[0]) * (180 / pi)
+                    angle2 = atan2(coord3[1] - coord2[1], coord3[0] - coord2[0]) * (180 / pi)
+                    angle3 = atan2(coord1[1] - coord3[1], coord1[0] - coord3[0]) * (180 / pi)
+                    angles = []
+                    angler1 = 180 - angle1 + angle2
+                    if angler1 > 360:
+                        angler1 = angler1 - 360
+                    if angler1 < 0:
+                        angler1 = angler1 + 360
+                    angler2 = 180 - angle1 + angle3
+                    if angler2 > 360:
+                        angler2 = angler2 - 360
+                    if angler2 < 0:
+                        angler2 = angler2 + 360
+                    angler3 = 180 - angle3 + angle2
+                    if angler3 > 360:
+                        angler3 = angler3 - 360
+                    if angler3 < 0:
+                        angler3 = angler3 + 360
+                    angles.append(min(angler1, 360 - angler1))
+                    angles.append(min(angler2, 360 - angler2))
+                    angles.append(min(angler3, 360 - angler3))
+                    angles.sort()
+                    cur_score = abs(angles[0] - 55) + abs(angles[1] - 60) + abs(angles[2] - 65)
+                    if cur_score < best_score:
+                        best_score = cur_score
+                        best_blobs = [coord1, coord2, coord3]
+
+    triangle_image = angle_image.copy()
+
+    draw_result = ImageDraw.Draw(triangle_image)
+    for blob in best_blobs:
+        x = blob[0] + req_width // 2
+        y = blob[1] + req_width // 2
+        draw_result.point((x, y), blue)
+        for i in range(3):
+            draw_result.point((x, y + i), blue)
+            draw_result.point((x, y - i), blue)
+            draw_result.point((x + i, y), blue)
+            draw_result.point((x - i, y), blue)
+
+    save(triangle_image, "triangle")
+
     if not full_research_mode:
         return
-
 
     sector_size = 128
     sector_i = 4
@@ -665,7 +878,7 @@ def process_file(input_file, full_research_mode):
         for blob in scored_blobs:
             cur_blob = blob
             for blob2 in scored_blobs:
-                distance = (cur_blob[0] - blob2[0]) ** 2 + (cur_blob[1] - blob2[1])**2
+                distance = (cur_blob[0] - blob2[0]) ** 2 + (cur_blob[1] - blob2[1]) ** 2
                 if distance < 3000:
                     if cur_blob[5] < (blob2[5] - 0.1):
                         cur_blob = (0, 0, 0, 0, 0, 0)

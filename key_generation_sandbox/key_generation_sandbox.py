@@ -1017,10 +1017,10 @@ def process_file(input_file, full_research_mode):
     # print(hash_as_str)
 
 
-def run_all():
+def run_all(mask):
     input_files = os.listdir(input_folder)
     for input_file in sorted(input_files)[::-1]:
-        if '~' in input_file:
+        if '~' in input_file or mask not in input_file:
             continue
         process_file(input_file, False)
 
@@ -1028,4 +1028,8 @@ def run_all():
 if __name__ == '__main__':
     os.makedirs(output_folder, exist_ok=True)
     os.makedirs(bloblist_folder, exist_ok=True)
-    run_all()
+    mask = ''
+    for arg in sys.argv:
+        if arg.startswith('--mask='):
+            mask = arg[7:]
+    run_all(mask)

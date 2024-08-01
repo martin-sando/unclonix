@@ -18,7 +18,7 @@ from skimage.color import rgb2gray
 input_folder = '../input'
 output_folder = '../output'
 bloblist_folder = output_folder + '/bloblist'
-
+report_folder = output_folder + '/report'
 
 def check_inside(x, y, w, h, overflow=0, rd=0):
     return (((x - rd) >= -overflow) & ((y - rd) >= -overflow)) & (
@@ -516,8 +516,8 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
 
     if not (blobs is None):
         for blob in blobs:
-            x = int(blob[1])
-            y = int(blob[0])
+            x = int(blob[0])
+            y = int(blob[1])
             colors = (128 + int(result_array[x, y][0] / max(scaling1, 0.0001)), 128 + int(result_array[x, y][1] / max(scaling2, 0.0001)),
                       128 + int(result_array[x, y][2] / max(scaling3, 0.0001)))
             if (tournament):
@@ -717,7 +717,65 @@ def filter_image(image, bound1, bound2):
                             draw_result.point((x1, y1),  (255, 255, 255))
     return filtered_image
 
-def process_file(input_file, full_research_mode):
+def get_blob_info(image, coords, blobs, mask_num, filename, hru, bound_1, bound_2, cutter_size=128):
+    label_folder = report_folder + "/" + str(mask_num)
+    os.makedirs(label_folder, exist_ok=True)
+    text_file = open(os.path.join(label_folder, filename + '.txt'), 'w')
+    def log(text, end="\n"):
+        text_file.write(text + end)
+    def log_picture(image, tag):
+        image.save(os.path.join(label_folder, filename + "_" + tag + ".png"))
+    def log_vector(vec):
+        log("[", end='')
+        for elem in vec:
+            s = str(elem)
+            if (len(s) > 6):
+                s = s[:6]
+            while (len(s) < 6):
+                s = s + '0'
+            log(s, end='\t')
+        log("]", end='\n')
+    def log_matrix(mtr):
+        log("[", end='\n')
+        for vec in mtr:
+            log_vector(vec)
+        log("]", end='\n')
+
+    closest_blob = (0, 0, 0)
+    closest_dist = 10000
+    for blob in blobs:
+        dist = (coords[0] - blob[0]) ** 2 + (coords[1] - blob[1])**2
+        if dist < closest_dist:
+            closest_dist = dist
+            closest_blob = blob
+    log("Closest blob found to (" + str(coords[0]) + ", " + str(coords[1]) + ") is (" + str(closest_blob[0]) + ", " + str(closest_blob[1]) + ")")
+
+    r = image.width // 2
+    angle = atan2((coords[1] - r), (coords[0] - r))
+    blob_img = image.crop(
+        (coords[0] - cutter_size, coords[1] - cutter_size, coords[0] + cutter_size, coords[1] + cutter_size))
+    rot_image = blob_img.rotate((angle * (180 / pi)))
+    blob_img = rot_image.crop(
+        (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
+    log_picture(blob_img, "around")
+    blob_pixels = blob_img.load()
+    array_image = np.zeros((cutter_size, cutter_size))
+    for x1 in range(cutter_size):
+        for y1 in range(cutter_size):
+            array_image[x1, y1] = blob_pixels[x1, y1][0] + 0.0
+    dct_array = cv2.dct(array_image)
+    log("Its dct looks like (before normalisation): ")
+    log_matrix(dct_array)
+    log("hru is")
+    log_vector(hru)
+    log("Unnormalised, its elems from " + str(bound_1) + " to " + str(bound_2) + ":")
+    dct_hru = np.zeros((bound_2 - bound_1 + 1, bound_2 - bound_1 + 1))
+    for i in range(bound_1, bound_2 + 1):
+        for j in range(bound_1, bound_2 + 1):
+            dct_hru[i - bound_1, j - bound_1] += hru[(i - bound_1) * (bound_2 - bound_1 + 1) + (j - bound_1)] * (dct_array[i, j])
+    log_matrix(dct_hru)
+
+def process_file(input_file, full_research_mode, mask):
     random.seed(566)
     hru_array = []
     for i in range(20):
@@ -775,6 +833,18 @@ def process_file(input_file, full_research_mode):
     save(new_circled_image, 'brightened')
     new_circled_image = new_circled_image.copy()
     circled_pixels = new_circled_image.load()
+
+    morph_image = rgb2gray(new_circled_image)
+    blobs_log = blob_log(morph_image, min_sigma=req_width / 450, max_sigma=req_width / 190, num_sigma=10, threshold=.03,
+                         overlap=0.5)
+    blobs_log[:, 2] = (blobs_log[:, 2] * np.sqrt(2)) + 1
+
+    transformed_blobs = []
+
+    for blob in blobs_log:
+        transformed_blobs.append((blob[1], blob[0], blob[2]))
+    blobs_log = transformed_blobs
+    get_blob_info(new_circled_image, (555, 408), blobs_log,  mask, filename, hru_array[0], 0, 5)
     ######################################################################
     # Previous steps are converting initial image to full-image label grayscale with good brightness
     # They won't change much
@@ -815,10 +885,7 @@ def process_file(input_file, full_research_mode):
         field_image = get_field_image(new_circled_image, req_width, req_height, precision=10, contrast=70, hru=hru_array, low_b=dot[0], up_b=dot[1], cell=True, scale=True, blobs=None, rgb=True, tournament=False)
         save(field_image, 'field_image_dot' + str(dot[0]) + '.' + str(dot[1]))
 
-    morph_image = rgb2gray(new_circled_image)
-    blobs_log = blob_log(morph_image, min_sigma=req_width / 450, max_sigma=req_width / 190, num_sigma=10, threshold=.03,
-                         overlap=0.5)
-    blobs_log[:, 2] = (blobs_log[:, 2] * np.sqrt(2)) + 1
+
 
     field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru_array, 0, 5, cell=False, scale = True, blobs=blobs_log, rgb=False, tournament=False)
     save(field_image, 'field_image_array' + '0' + '..' + '5')
@@ -936,12 +1003,13 @@ def run_all(mask):
     for input_file in sorted(input_files)[::-1]:
         if '~' in input_file or mask not in input_file:
             continue
-        process_file(input_file, False)
+        process_file(input_file, False, mask)
 
 
 if __name__ == '__main__':
     os.makedirs(output_folder, exist_ok=True)
     os.makedirs(bloblist_folder, exist_ok=True)
+    os.makedirs(report_folder, exist_ok=True)
     mask = ''
     for arg in sys.argv:
         if arg.startswith('--mask='):

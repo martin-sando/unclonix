@@ -444,8 +444,8 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
         req_dots = blobs
 
     for dot in req_dots:
-        coord_0 = int(dot[1])
-        coord_1 = int(dot[0])
+        coord_0 = int(dot[0])
+        coord_1 = int(dot[1])
         dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
         if dist > 0.8:
             dct_fields.append([[]])
@@ -476,8 +476,8 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
     dct_sum = dct_sum / dct_count
 
     for i in range(len(req_dots)):
-        coord_0 = int(req_dots[i][1])
-        coord_1 = int(req_dots[i][0])
+        coord_0 = int(req_dots[i][0])
+        coord_1 = int(req_dots[i][1])
         dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
         if dist > 0.8:
             continue
@@ -750,13 +750,24 @@ def get_blob_info(image, coords, blobs, mask_num, filename, hru, bound_1, bound_
             closest_blob = blob
     log("Closest blob found to (" + str(coords[0]) + ", " + str(coords[1]) + ") is (" + str(closest_blob[0]) + ", " + str(closest_blob[1]) + ")")
 
+    draw_result = ImageDraw.Draw(image);
+    draw_result.point((closest_blob[0], closest_blob[1]), (0, 0, 255))
+    x = int(closest_blob[0])
+    y = int(closest_blob[1])
+    draw_result.point((x, y), (0, 0, 255))
+    for i in range(int(closest_blob[2])):
+        draw_result.point((x, y + i), (0, 0, 255))
+        draw_result.point((x, y - i), (0, 0, 255))
+        draw_result.point((x + i, y), (0, 0, 255))
+        draw_result.point((x - i, y), (0, 0, 255))
     r = image.width // 2
-    angle = atan2((coords[1] - r), (coords[0] - r))
+    angle = atan2((closest_blob[1] - r), (closest_blob[0] - r))
     blob_img = image.crop(
-        (coords[0] - cutter_size, coords[1] - cutter_size, coords[0] + cutter_size, coords[1] + cutter_size))
+        (closest_blob[0] - cutter_size, closest_blob[1] - cutter_size, closest_blob[0] + cutter_size, closest_blob[1] + cutter_size))
     rot_image = blob_img.rotate((angle * (180 / pi)))
+
     blob_img = rot_image.crop(
-        (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
+        (cutter_size // 2, cutter_size // 2, (cutter_size * 3) // 2, (cutter_size * 3) // 2))
     log_picture(blob_img, "around")
     blob_pixels = blob_img.load()
     array_image = np.zeros((cutter_size, cutter_size))
@@ -887,7 +898,7 @@ def process_file(input_file, full_research_mode, mask):
 
 
 
-    field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru_array, 0, 5, cell=False, scale = True, blobs=blobs_log, rgb=False, tournament=False)
+    field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru_array, 3, 5, cell=False, scale = True, blobs=blobs_log, rgb=True, tournament=False)
     save(field_image, 'field_image_array' + '0' + '..' + '5')
 
     #some sode using my filter, only works well if tournament=False, rgb=False and blobs=None

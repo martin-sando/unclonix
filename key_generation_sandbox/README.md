@@ -15,3 +15,5 @@ http://ndl.ethernet.edu.et/bitstream/123456789/36780/1/15.pdf
 https://dfrws.org/wp-content/uploads/2024/03/PHASER-Perceptual-hashing-algorithms-evaluati_2024_Forensic-Science-Interna.pdf
 
 https://github.com/AabyWan/PHASER
+
+https://www.researchgate.net/publication/377567576_Process_of_Fingerprint_Authentication_using_Cancelable_Biohashed_Template

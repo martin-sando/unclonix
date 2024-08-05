@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import cv2
+import json
 import random
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
@@ -19,10 +20,46 @@ input_folder = '../input'
 output_folder = '../output'
 bloblist_folder = output_folder + '/bloblist'
 report_folder = output_folder + '/report'
+class Blob:
+    def __init__(self, coords, size, brightness=None, dct_128_8=None, color=None):
+        self.coords = coords
+        self.size = size
+        self.brightness = brightness
+        self.dct_128_8 = dct_128_8
+        self.color = color
+    def to_json(self):
+        return json.dumps({
+            "coords": self.coords,
+            "size": self.size,
+            "brightness": self.brightness,
+            "dct_128_8": self.dct_128_8,
+            "color": self.color
+        })
+    def log(self, file):
+        file.write(self.to_json() + "\n")
+    def same_dot(self, blob2):
+        return self.coords[0] == blob2.coords[0] and self.coords[1] == blob2.coords[1]
+    @staticmethod
+    def unpack(blob_json):
+        blob_dict = json.loads(blob_json)
+        coords = blob_dict["coords"]
+        size = blob_dict["size"]
+        brightness = blob_dict["brightness"]
+        dct_128_8 = blob_dict["dct_128_8"]
+        color = blob_dict["color"]
+        return Blob(coords, size, brightness, dct_128_8, color)
 
+def get_blob_list(filename):
+    text_read = open(filename)
+    blobs=[]
+    for line in text_read:
+        blob = Blob.unpack(line)
+        blobs.append(blob)
+    return blobs
 def check_inside(x, y, w, h, overflow=0, rd=0):
     return (((x - rd) >= -overflow) & ((y - rd) >= -overflow)) & (
             ((x + rd) < (w + overflow)) & ((y + rd) < (h + overflow)))
+
 
 def linear_score(this, worst, best):
     if this < worst:
@@ -30,6 +67,7 @@ def linear_score(this, worst, best):
     if this > best:
         return 1
     return (this - worst) / (best - worst)
+
 
 def linear_score2(this, worst1, best1, best2, worst2):
     if this < worst1:
@@ -41,6 +79,8 @@ def linear_score2(this, worst1, best1, best2, worst2):
     if best2 < this < worst2:
         return (worst2 - this) / (worst2 - best2)
     return 0
+
+
 def find_circle_ph1(image, compression_power, saved_image):
     rmin = int(min(image.height, image.width) / 8)
     rmax = int(min(image.height, image.width) / 1.9)
@@ -180,6 +220,7 @@ def trim(image, req_size, skip_factor):
                     draw_result.point((x1, y1), (color, color, color))
     return new_circled_image
 
+
 def brighten(image, bright_coef):
     pixels = image.load()
     draw_result = ImageDraw.Draw(image)
@@ -197,23 +238,27 @@ def brighten(image, bright_coef):
             draw_result.point((x1, y1), (color, color, color))
     return image
 
+
 def brighten_blobs(image, blobs):
     pixels = image.load()
     brightened_blobs = []
     for blob in blobs:
-        x = blob[1]
-        y = blob[0]
-        sigma = blob[2]
+        x = blob.coords[0]
+        y = blob.coords[1]
+        size = blob.size
         brightness = 0
-        for i in range(-int(sigma), int(sigma) + 1):
-            for j in range(-int(sigma), int(sigma) + 1):
+        for i in range(-int(size), int(size) + 1):
+            for j in range(-int(size), int(size) + 1):
                 if check_inside(x + i, y + j, image.height, image.width):
                     dist = sqrt((i) ** 2 + (j) ** 2)
-                    if dist <= sigma ** 2:
-                        brightness += exp(-(dist / (2 * sigma))) * pixels[(x, y)][0]
-        brightness = brightness / (2 * sigma * sigma)
-        brightened_blobs.append((x, y, sigma, brightness))
+                    if dist <= size ** 2:
+                        brightness += exp(-(dist / (2 * size))) * pixels[(x, y)][0]
+        brightness = brightness / (2 * size * size)
+        blob.brightness = brightness
+        brightened_blobs.append(blob)
     return brightened_blobs
+
+
 def get_fft_image(image, image_size, fft_radius, coef_1, coef_2):
     array_image = to_array(image)
 
@@ -420,7 +465,8 @@ def to_image(input_array, width, length):
     return image
 
 
-def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cell, scale=True, contrast=128, cutter_size=128, blobs=None, rgb=False, tournament=False):
+def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cell, scale=True, contrast=128,
+                    cutter_size=128, blobs=None, rgb=False, tournament=False):
     r = width // 2
     result_array = np.zeros((width, height, 3))
     dct_sum = np.zeros((128, 128))
@@ -428,11 +474,11 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
     total_sum1 = 0
     total_sum2 = 0
     total_sum3 = 0
-    req_dots=[]
-    dct_fields=[]
+    req_dots = []
+    dct_fields = []
     dct_count = 0;
-    i_range = range(low_b, up_b+1)
-    j_range = range(low_b, up_b+1)
+    i_range = range(low_b, up_b + 1)
+    j_range = range(low_b, up_b + 1)
     if cell:
         i_range = [low_b]
         j_range = [up_b]
@@ -441,7 +487,8 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
             for y in range(height // precision):
                 req_dots.append((x * precision, y * precision))
     else:
-        req_dots = blobs
+        for blob in blobs:
+            req_dots.append(blob.coords)
 
     for dot in req_dots:
         coord_0 = int(dot[0])
@@ -452,7 +499,7 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
             continue
         angle = atan2((coord_1 - r), (coord_0 - r))
         blob_img = input_image.crop(
-            (coord_0 - cutter_size, coord_1 - cutter_size, coord_0 + cutter_size, coord_1 + cutter_size))
+            (coord_0 - cutter_size, coord_1 - cutter_size, coord_0 + cutter_size + 1, coord_1 + cutter_size + 1))
         rot_image = blob_img.rotate((angle * (180 / pi)))
         blob_img = rot_image.crop(
             (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
@@ -483,13 +530,27 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
             continue
         dct_array = dct_fields[i]
         score = [0, 0, 0]
+        s1 = 0
+        s2 = 0
+        s3 = 0
+        s4 = 0
         if not tournament:
             for i in i_range:
                 for j in j_range:
-                    score[0] += hru[0][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (dct_array[i, j] / dct_sum[i, j])
+                    s1 += hru[0][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
+                                dct_array[i, j] / sqrt(dct_sum[i, j]))
+                    s2 += hru[1][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
+                            dct_array[i, j] / sqrt(dct_sum[i, j]))
+                    s3 += hru[2][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
+                            dct_array[i, j] / sqrt(dct_sum[i, j]))
+                    s4 += hru[3][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
+                            dct_array[i, j] / sqrt(dct_sum[i, j]))
                     if rgb:
-                        score[1] += hru[1][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (dct_array[i, j] / dct_sum[i, j])
-                        score[2] += hru[2][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (dct_array[i, j] / dct_sum[i, j])
+                        score[1] += hru[1][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
+                                    dct_array[i, j] / sqrt(dct_sum[i, j]))
+                        score[2] += hru[2][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
+                                    dct_array[i, j] / sqrt(dct_sum[i, j]))
+            score[0] = min(s1, s2, s3, s4)
             total_sum1 += abs(score[0])
             total_sum2 += abs(score[1])
             total_sum3 += abs(score[2])
@@ -498,7 +559,8 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
                 sum = 0
                 for i in i_range:
                     for j in j_range:
-                        sum += hru_elem[(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (dct_array[i, j] / dct_sum[i, j])
+                        sum += hru_elem[(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
+                                    dct_array[i, j] / dct_sum[i, j])
                 if sum > 0:
                     score[0] = score[0] + 30
                 else:
@@ -516,16 +578,17 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
 
     if not (blobs is None):
         for blob in blobs:
-            x = int(blob[0])
-            y = int(blob[1])
-            colors = (128 + int(result_array[x, y][0] / max(scaling1, 0.0001)), 128 + int(result_array[x, y][1] / max(scaling2, 0.0001)),
+            x = int(blob.coords[0])
+            y = int(blob.coords[1])
+            colors = (128 + int(result_array[x, y][0] / max(scaling1, 0.0001)),
+                      128 + int(result_array[x, y][1] / max(scaling2, 0.0001)),
                       128 + int(result_array[x, y][2] / max(scaling3, 0.0001)))
             if (tournament):
                 colors = (int(result_array[x, y][0]), 0, 0)
             elif not rgb:
                 colors = (128 + int(result_array[x, y][0] / max(scaling1, 0.0001)), 0, 0)
             draw_result.point((x, y), colors)
-            for i in range(int(blob[2])):
+            for i in range(int(blob.size)):
                 draw_result.point((x, y + i), colors)
                 draw_result.point((x, y - i), colors)
                 draw_result.point((x + i, y), colors)
@@ -542,20 +605,24 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
                         dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
                         if dist > 0.8:
                             continue
-                        comp_1 = result_array[x * precision, y * precision] * (1 - x1 / precision) * (1 - y1 / precision)
+                        comp_1 = result_array[x * precision, y * precision] * (1 - x1 / precision) * (
+                                    1 - y1 / precision)
                         comp_2 = result_array[x * precision, y * precision + precision] * (1 - x1 / precision) * (
                                 y1 / precision)
                         comp_3 = result_array[x * precision + precision, y * precision] * (x1 / precision) * (
                                 1 - y1 / precision)
-                        comp_4 = result_array[x * precision + precision, y * precision + precision] * (x1 / precision) * (
-                                y1 / precision)
+                        comp_4 = result_array[x * precision + precision, y * precision + precision] * (
+                                    x1 / precision) * (
+                                         y1 / precision)
                         result_array[coord_0, coord_1] = comp_1 + comp_2 + comp_3 + comp_4
         for x in range(width):
             for y in range(height):
                 dist = sqrt((x - r) ** 2 + (y - r) ** 2) / r
                 color = (0, 0, 0)
                 if dist < 0.8:
-                    color = (int(128 + result_array[x, y][0] // max(scaling1, 0.0001)), int(128 + result_array[x, y][1] // max(scaling2, 0.0001)), int(128 + result_array[x, y][2] // max(scaling3, 0.0001)))
+                    color = (int(128 + result_array[x, y][0] // max(scaling1, 0.0001)),
+                             int(128 + result_array[x, y][1] // max(scaling2, 0.0001)),
+                             int(128 + result_array[x, y][2] // max(scaling3, 0.0001)))
                     if (tournament):
                         color = (int(result_array[x, y][0]), 0, 0)
                     elif not rgb:
@@ -563,6 +630,72 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
                 draw_result.point((x, y), color)
 
     return field_image
+
+
+def add_dcts(input_image, width, height, blobs, cutter_size=128):
+    calculated_blobs = []
+    r = width // 2
+    for blob in blobs:
+        coord_0 = int(blob.coords[0])
+        coord_1 = int(blob.coords[1])
+        dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
+        if dist > 0.8 or dist < 0.4:
+            continue
+        angle = atan2((coord_1 - r), (coord_0 - r))
+        blob_img = input_image.crop(
+            (coord_0 - cutter_size, coord_1 - cutter_size, coord_0 + cutter_size, coord_1 + cutter_size))
+        rot_image = blob_img.rotate((angle * (180 / pi)))
+        blob_img = rot_image.crop(
+            (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
+        blob_pixels = blob_img.load()
+
+        array_image = np.zeros((cutter_size, cutter_size))
+        for x1 in range(cutter_size):
+            for y1 in range(cutter_size):
+                array_image[x1, y1] = blob_pixels[x1, y1][0] + 0.0
+
+        dct_array = cv2.dct(array_image)
+        dct_corner = [(x.tolist())[0:8] for x in dct_array[0:8]]
+        blob.dct_128_8 = dct_corner
+        calculated_blobs.append(blob)
+    return calculated_blobs
+
+
+def add_colors(blobs, hru_array):
+    colored_blobs = []
+    for blob in blobs:
+        dct_array = blob.dct_128_8
+        colors = [0, 0, 0]
+        sum = 0
+        for i in range(4):
+            for j in range(4):
+                sum += hru_array[0][i * 8 + j] * dct_array[i][j]
+        colors[0] = sum
+        sum = 0
+        for i in range(4):
+            for j in range(4, 8):
+                sum += hru_array[1][i * 8 + j] * dct_array[i][j]
+        colors[1] = sum
+        sum = 0
+        for i in range(4, 8):
+            for j in range(4):
+                sum += hru_array[2][i * 8 + j] * dct_array[i][j]
+        colors[2] = sum
+        blob.color = colors
+        colored_blobs.append(blob)
+    return colored_blobs
+
+
+def get_best_color(blobs, amount, color_num):
+    colors = []
+    for blob in blobs:
+        colors.append(blob.color[color_num])
+    colors.sort()
+    best_blobs = []
+    for blob in blobs:
+        if (blob.color[color_num] >= colors[len(blobs) - amount]):
+            best_blobs.append(blob)
+    return best_blobs
 
 
 def get_angle_image(input_image, width, height, precision, mode, cutter_size=64):
@@ -639,26 +772,22 @@ def get_angle_image(input_image, width, height, precision, mode, cutter_size=64)
     return field_image
 
 
-def find_triangle(image, blobs_log, req_angles):
-    blue=(0, 0, 255)
-    best_score = 1000
-    best_blobs = []
-    r = image.width // 2
-    for blob1 in blobs_log:
-        for blob2 in blobs_log:
-            if blob1[0] == blob2[0] and blob1[1] == blob2[1]:
+def find_triangles(r, best_blobs_color, req_angles, threshold):
+    triangles = []
+    for blob1 in best_blobs_color[0]:
+        for blob2 in best_blobs_color[1]:
+            if blob1.same_dot(blob2):
                 continue
-            for blob3 in blobs_log:
-                if (blob1[0] == blob3[0] and blob1[1] == blob3[1]) or (blob2[0] == blob3[0] and blob2[1] == blob3[1]):
+            for blob3 in best_blobs_color[2]:
+                if blob1.same_dot(blob3) or blob2.same_dot(blob3):
                     continue
-                coord1 = (blob1[0] - r, blob1[1] - r)
-                coord2 = (blob2[0] - r, blob2[1] - r)
-                coord3 = (blob3[0] - r, blob3[1] - r)
-                dist1 = sqrt((coord1[0]) ** 2 + (coord1[1]) ** 2) / r
-                dist2 = sqrt((coord2[0]) ** 2 + (coord2[1]) ** 2) / r
-                dist3 = sqrt((coord3[0]) ** 2 + (coord3[1]) ** 2) / r
+                coord1 = (blob1.coords[0] - r, blob1.coords[1] - r)
+                coord2 = (blob2.coords[0] - r, blob2.coords[1] - r)
+                coord3 = (blob3.coords[0] - r, blob3.coords[1] - r)
                 dist_12 = sqrt((coord1[0] - coord2[0]) ** 2 + (coord1[1] - coord2[1]) ** 2)
-                if ((0.4 < dist1 < 0.6) and (0.4 < dist2 < 0.6)) and ((0.4 < dist3 < 0.6) and dist_12 > 300):
+                dist_13 = sqrt((coord1[0] - coord3[0]) ** 2 + (coord1[1] - coord3[1]) ** 2)
+                dist_23 = sqrt((coord2[0] - coord3[0]) ** 2 + (coord2[1] - coord3[1]) ** 2)
+                if (dist_12 > 300 and dist_13 > 300) and dist_23 > 300:
                     angle1 = atan2(coord2[1] - coord1[1], coord2[0] - coord1[0]) * (180 / pi)
                     angle2 = atan2(coord3[1] - coord2[1], coord3[0] - coord2[0]) * (180 / pi)
                     angle3 = atan2(coord1[1] - coord3[1], coord1[0] - coord3[0]) * (180 / pi)
@@ -682,24 +811,37 @@ def find_triangle(image, blobs_log, req_angles):
                     angles.append(min(angler2, 360 - angler2))
                     angles.append(min(angler3, 360 - angler3))
                     angles.sort()
-                    cur_score = abs(angles[0] - req_angles[0]) + abs(angles[1] - req_angles[1]) + abs(angles[2] - req_angles[2])
-                    if cur_score < best_score:
-                        best_score = cur_score
-                        best_blobs = [coord1, coord2, coord3]
+                    cur_score = abs(angles[0] - req_angles[0]) + abs(angles[1] - req_angles[1]) + abs(
+                        angles[2] - req_angles[2])
+                    if cur_score < threshold:
+                        triangles.append((blob1, blob2, blob3))
+    return triangles
 
-    triangle_image = image.copy()
 
-    draw_result = ImageDraw.Draw(triangle_image)
-    for blob in best_blobs:
-        x = blob[0] + r
-        y = blob[1] + r
-        draw_result.point((x, y), blue)
-        for i in range(3):
-            draw_result.point((x, y + i), blue)
-            draw_result.point((x, y - i), blue)
-            draw_result.point((x + i, y), blue)
-            draw_result.point((x - i, y), blue)
-    return triangle_image
+def draw_triangles(image, triangles, best_blobs_color):
+    draw = ImageDraw.Draw(image)
+    for (blob1, blob2, blob3) in triangles:
+        draw.line([(blob1.coords[0], blob1.coords[1]), (blob2.coords[0], blob2.coords[1])], fill="red", width=0)
+        draw.line([(blob2.coords[0], blob2.coords[1]), (blob3.coords[0], blob3.coords[1])], fill="green", width=0)
+        draw.line([(blob3.coords[0], blob3.coords[1]), (blob1.coords[0], blob1.coords[1])], fill="blue", width=0)
+
+    for i in range(3):
+        for blob in best_blobs_color[i]:
+            coords = blob.coords
+            color = (0, 0, 0)
+            if i == 0:
+                color = (255, 0, 0)
+            if i == 1:
+                color = (0, 255, 0)
+            if i == 2:
+                color = (0, 0, 255)
+            draw.point(coords, color)
+            for i in range(6):
+                draw.point((coords[0] - i, coords[1]), color)
+                draw.point((coords[0], coords[1] - i), color)
+                draw.point((coords[0] + i, coords[1]), color)
+                draw.point((coords[0], coords[1] + i), color)
+    return image
 
 
 def filter_image(image, bound1, bound2):
@@ -713,18 +855,22 @@ def filter_image(image, bound1, bound2):
             elif (saved_pixels[x1, y1][0] > bound2):
                 for x2 in range(-10, 10):
                     for y2 in range(-10, 10):
-                        if (saved_pixels[x1+x2, y1+y2][0] > 250):
-                            draw_result.point((x1, y1),  (255, 255, 255))
+                        if (saved_pixels[x1 + x2, y1 + y2][0] > 250):
+                            draw_result.point((x1, y1), (255, 255, 255))
     return filtered_image
+
 
 def get_blob_info(image, coords, blobs, mask_num, filename, hru, bound_1, bound_2, cutter_size=128):
     label_folder = report_folder + "/" + str(mask_num)
     os.makedirs(label_folder, exist_ok=True)
     text_file = open(os.path.join(label_folder, filename + '.txt'), 'w')
+
     def log(text, end="\n"):
         text_file.write(text + end)
+
     def log_picture(image, tag):
         image.save(os.path.join(label_folder, filename + "_" + tag + ".png"))
+
     def log_vector(vec):
         log("[", end='')
         for elem in vec:
@@ -735,6 +881,7 @@ def get_blob_info(image, coords, blobs, mask_num, filename, hru, bound_1, bound_
                 s = s + '0'
             log(s, end='\t')
         log("]", end='\n')
+
     def log_matrix(mtr):
         log("[", end='\n')
         for vec in mtr:
@@ -744,30 +891,32 @@ def get_blob_info(image, coords, blobs, mask_num, filename, hru, bound_1, bound_
     closest_blob = (0, 0, 0)
     closest_dist = 10000
     for blob in blobs:
-        dist = (coords[0] - blob[0]) ** 2 + (coords[1] - blob[1])**2
+        dist = (coords[0] - blob.coords[0]) ** 2 + (coords[1] - blob.coords[1]) ** 2
         if dist < closest_dist:
             closest_dist = dist
             closest_blob = blob
-    log("Closest blob found to (" + str(coords[0]) + ", " + str(coords[1]) + ") is (" + str(closest_blob[0]) + ", " + str(closest_blob[1]) + ")")
+    log("Closest blob found to (" + str(coords[0]) + ", " + str(coords[1]) + ") is (" + str(
+        closest_blob.coords[0]) + ", " + str(closest_blob.coords[1]) + ")")
 
     draw_result = ImageDraw.Draw(image);
-    draw_result.point((closest_blob[0], closest_blob[1]), (0, 0, 255))
-    x = int(closest_blob[0])
-    y = int(closest_blob[1])
+    draw_result.point(closest_blob.coords, (0, 0, 255))
+    x = int(closest_blob.coords[0])
+    y = int(closest_blob.coords[1])
     draw_result.point((x, y), (0, 0, 255))
-    for i in range(int(closest_blob[2])):
+    for i in range(int(closest_blob.size)):
         draw_result.point((x, y + i), (0, 0, 255))
         draw_result.point((x, y - i), (0, 0, 255))
         draw_result.point((x + i, y), (0, 0, 255))
         draw_result.point((x - i, y), (0, 0, 255))
     r = image.width // 2
-    angle = atan2((closest_blob[1] - r), (closest_blob[0] - r))
+    angle = atan2((y - r), (x - r))
     blob_img = image.crop(
-        (closest_blob[0] - cutter_size, closest_blob[1] - cutter_size, closest_blob[0] + cutter_size, closest_blob[1] + cutter_size))
+        (x - cutter_size, y - cutter_size, x + cutter_size,
+         y + cutter_size))
     rot_image = blob_img.rotate((angle * (180 / pi)))
 
     blob_img = rot_image.crop(
-        (cutter_size // 2, cutter_size // 2, (cutter_size * 3) // 2, (cutter_size * 3) // 2))
+        (int(cutter_size / 2) + 1, int(cutter_size / 2) + 1, int(cutter_size * (3 / 2)) + 1, int(cutter_size * (3 / 2)) + 1))
     log_picture(blob_img, "around")
     blob_pixels = blob_img.load()
     array_image = np.zeros((cutter_size, cutter_size))
@@ -783,8 +932,10 @@ def get_blob_info(image, coords, blobs, mask_num, filename, hru, bound_1, bound_
     dct_hru = np.zeros((bound_2 - bound_1 + 1, bound_2 - bound_1 + 1))
     for i in range(bound_1, bound_2 + 1):
         for j in range(bound_1, bound_2 + 1):
-            dct_hru[i - bound_1, j - bound_1] += hru[(i - bound_1) * (bound_2 - bound_1 + 1) + (j - bound_1)] * (dct_array[i, j])
+            dct_hru[i - bound_1, j - bound_1] += hru[(i - bound_1) * (bound_2 - bound_1 + 1) + (j - bound_1)] * (
+            dct_array[i, j])
     log_matrix(dct_hru)
+
 
 def process_file(input_file, full_research_mode, mask):
     random.seed(566)
@@ -842,6 +993,17 @@ def process_file(input_file, full_research_mode, mask):
 
     new_circled_image = brighten(new_circled_image, bright_coef=15)
     save(new_circled_image, 'brightened')
+
+    x, y = [np.linspace(0, req_width - 1, req_width)] * 2
+    dx, dy = [c[1] - c[0] for c in (x, y)]
+    lap = Laplacian(h=[dx, dy])
+
+    circle_array = to_array(new_circled_image)
+    lap_array = lap(circle_array) * 5
+    lap_image = to_image(lap_array, req_width, req_height)
+
+    save(lap_image, 'laplacian')
+
     new_circled_image = new_circled_image.copy()
     circled_pixels = new_circled_image.load()
 
@@ -850,18 +1012,33 @@ def process_file(input_file, full_research_mode, mask):
                          overlap=0.5)
     blobs_log[:, 2] = (blobs_log[:, 2] * np.sqrt(2)) + 1
 
-    transformed_blobs = []
+    blobs_obj = []
 
     for blob in blobs_log:
-        transformed_blobs.append((blob[1], blob[0], blob[2]))
-    blobs_log = transformed_blobs
-    get_blob_info(new_circled_image, (555, 408), blobs_log,  mask, filename, hru_array[0], 0, 5)
+        coords = [blob[1], blob[0]]
+        size = blob[2]
+        blobs_obj.append(Blob(coords, size))
+
+    blobs_obj = brighten_blobs(new_circled_image, blobs_obj)
+    blobs_obj = add_dcts(new_circled_image, req_width, req_height, blobs_obj)
+    blobs_obj = add_colors(blobs_obj, hru_array)
+    text_file = open(os.path.join(report_folder, mask, filename + '.txt'), 'w')
+    for blob in blobs_obj:
+        blob.log(text_file)
+    blobs_obj = get_blob_list(os.path.join(report_folder, mask, filename + '.txt'))
+    red_blobs = get_best_color(blobs_obj, 50, 0)
+    green_blobs = get_best_color(blobs_obj, 50, 1)
+    blue_blobs = get_best_color(blobs_obj, 50, 2)
+    colors_blobs = [red_blobs, green_blobs, blue_blobs]
+    triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 2)
+    copy_image = new_circled_image.copy()
+    triangles_image = draw_triangles(copy_image, triangles, colors_blobs)
+    save(triangles_image, 'chaos')
     ######################################################################
     # Previous steps are converting initial image to full-image label grayscale with good brightness
     # They won't change much
     # Below are experiments
     ######################################################################
-
 
     ######################################################################
     # get_field_image_manual (sort of):
@@ -889,18 +1066,23 @@ def process_file(input_file, full_research_mode, mask):
     pairs = [(3, 5)]
     dots = [(6, 2)]
     for pair in pairs:
-        field_image = get_field_image(new_circled_image, req_width, req_height, precision=10, contrast=70, hru=hru_array, low_b=pair[0], up_b=pair[1], cell=False, scale=True, blobs=None, rgb=True, tournament=False)
+        field_image = get_field_image(new_circled_image, req_width, req_height, precision=10, contrast=70,
+                                      hru=hru_array, low_b=pair[0], up_b=pair[1], cell=False, scale=True, blobs=None,
+                                      rgb=True, tournament=False)
         save(field_image, 'field_image_array' + str(pair[0]) + '..' + str(pair[1]))
 
     for dot in dots:
-        field_image = get_field_image(new_circled_image, req_width, req_height, precision=10, contrast=70, hru=hru_array, low_b=dot[0], up_b=dot[1], cell=True, scale=True, blobs=None, rgb=True, tournament=False)
+        field_image = get_field_image(new_circled_image, req_width, req_height, precision=10, contrast=70,
+                                      hru=hru_array, low_b=dot[0], up_b=dot[1], cell=True, scale=True, blobs=None,
+                                      rgb=True, tournament=False)
         save(field_image, 'field_image_dot' + str(dot[0]) + '.' + str(dot[1]))
 
-
-
-    field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru_array, 3, 5, cell=False, scale = True, blobs=blobs_log, rgb=True, tournament=False)
+    field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru_array, 0, 3, contrast=70, cell=False, scale=True,
+                                  blobs=blobs_obj, rgb=False, tournament=False)
+    save(field_image, 'field_image_blob' + '0' + '..' + '5')
+    field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru_array, 0, 3, contrast=70, cell=False, scale=True,
+                                  blobs=None, rgb=False, tournament=False)
     save(field_image, 'field_image_array' + '0' + '..' + '5')
-
     #some sode using my filter, only works well if tournament=False, rgb=False and blobs=None
     # angle_image = get_angle_image(field_image, req_width, req_height, mode="both", precision=5)
     # save(angle_image, 'angle_image_array' + '0' + '..' + '5')
@@ -942,11 +1124,6 @@ def process_file(input_file, full_research_mode, mask):
         return
 
 
-    morph_image = rgb2gray(new_circled_image)
-    blobs_log = blob_log(morph_image, min_sigma=req_width / 450, max_sigma=req_width / 190, num_sigma=10, threshold=.03,
-                         overlap=0.5)
-    blobs_log[:, 2] = (blobs_log[:, 2] * np.sqrt(2)) + 1
-
     # blobs_dog = blob_dog(morph_image, min_sigma=1.2, max_sigma=req_width / 170, threshold=.03)
     # blobs_dog[:, 2] = blobs_dog[:, 2] * np.sqrt(2)
     # blobs_doh = blob_doh(morph_image, max_sigma=20, threshold=.01)
@@ -956,15 +1133,14 @@ def process_file(input_file, full_research_mode, mask):
 
     draw_result_bright = ImageDraw.Draw(saved_circle_image)
 
-    text_file = open(os.path.join(bloblist_folder, filename + '.txt'), 'w')
     brightened_blobs = brighten_blobs(log_picture, blobs_log)
 
     blob_array = np.zeros((req_width, req_height))
-    for blob in brightened_blobs:
-        x = blob[0]
-        y = blob[1]
-        sigma = blob[2]
-        brightness = blob[3]
+    for blob in blobs_obj:
+        x = blob.coords[0]
+        y = blob.coords[1]
+        sigma = blob.size
+        brightness = blob.brightness
         for i in range(-int(sigma), int(sigma) + 1):
             for j in range(-int(sigma), int(sigma) + 1):
                 if check_inside(x + i, y + j, req_height, req_width):
@@ -984,8 +1160,6 @@ def process_file(input_file, full_research_mode, mask):
     lap_image = to_image(lap_array, req_width, req_height)
 
     save(lap_image, 'laplacian')
-
-
 
     array_image = np.zeros((req_width, req_height))
     for x1 in range(req_width):

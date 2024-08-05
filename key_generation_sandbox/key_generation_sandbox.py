@@ -674,6 +674,8 @@ def get_blob_info(image, coords, blobs, mask_num, filename, hru, bound_1, bound_
 def process_file(input_file, full_research_mode, mask):
     if mask == '':
         mask = 'unlabeled'
+    label_folder = report_folder + "/" + str(mask)
+    os.makedirs(label_folder, exist_ok=True)
     random.seed(566)
     hru_array = []
     for i in range(20):

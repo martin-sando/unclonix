@@ -271,7 +271,7 @@ def process_file(input_file, full_research_mode, mask):
         mask = 'unlabeled'
     filename = input_file.split('.')[0]
     print('Processing (phase 2) ' + filename)
-    blobs_obj = get_blob_list(os.path.join(report_folder, mask, filename + '.txt'))
+    blobs_obj = get_blob_list(os.path.join(bloblist_folder, mask, filename + '.txt'))
     new_circled_image = Image.open(os.path.join(report_folder, mask, filename + "_" + "brightened" + ".png"))
     circled_pixels = new_circled_image.load()
 

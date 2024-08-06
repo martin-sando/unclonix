@@ -692,7 +692,9 @@ def process_file(input_file, full_research_mode, mask):
     if mask == '':
         mask = 'unlabeled'
     label_folder = report_folder + "/" + str(mask)
+    list_folder = bloblist_folder + "/" + str(mask)
     os.makedirs(label_folder, exist_ok=True)
+    os.makedirs(list_folder, exist_ok=True)
     filename = input_file.split('.')[0]
     print('Processing ' + filename)
 
@@ -763,10 +765,9 @@ def process_file(input_file, full_research_mode, mask):
     blobs_obj = brighten_blobs(new_circled_image, blobs_obj)
     blobs_obj = add_dcts(new_circled_image, req_width, req_height, blobs_obj)
     blobs_obj = add_colors(blobs_obj, hru_array)
-    text_file = open(os.path.join(report_folder, mask, filename + '.txt'), 'w')
+    text_file = open(os.path.join(bloblist_folder, mask, filename + '.txt'), 'w')
     for blob in blobs_obj:
         blob.log(text_file)
-    blobs_obj = get_blob_list(os.path.join(report_folder, mask, filename + '.txt'))
     new_circled_image.save(os.path.join(report_folder, mask, filename + "_" + "brightened" + ".png"))
 
 

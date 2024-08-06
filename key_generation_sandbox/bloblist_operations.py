@@ -5,17 +5,13 @@ import cv2
 import imagehash
 import json
 import random
-from key_generation_sandbox import Blob, check_inside, to_image, to_array
+from key_generation_sandbox import (Blob, check_inside, to_image, to_array, input_folder, output_folder, bloblist_folder, report_folder, run_all,
+                                    req_size, req_width, req_height, white, black, red, green, blue, hru_array)
 from PIL import Image, ImageDraw
 import numpy as np
 from math import sqrt
 from math import sqrt, pi, cos, sin, exp, atan2
 from findiff import Gradient, Divergence, Laplacian, Curl
-
-input_folder = '../input'
-output_folder = '../output'
-bloblist_folder = output_folder + '/bloblist'
-report_folder = output_folder + '/report'
 def get_blob_list(filename):
     text_read = open(filename)
     blobs=[]
@@ -92,11 +88,11 @@ def draw_triangles(image, triangles, best_blobs_color):
             coords = blob.coords
             color = (0, 0, 0)
             if i == 0:
-                color = (255, 0, 0)
+                color = red
             if i == 1:
-                color = (0, 255, 0)
+                color = green
             if i == 2:
-                color = (0, 0, 255)
+                color = blue
             draw.point(coords, color)
             for i in range(6):
                 draw.point((coords[0] - i, coords[1]), color)
@@ -271,24 +267,10 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
 
     return field_image
 def process_file(input_file, full_research_mode, mask):
-    random.seed(566)
-    hru_array = []
-    for i in range(20):
-        hru = [random.gauss(mu=0.0, sigma=1.0) for _ in range(64)]
-        hru_array.append(hru)
+    if mask == '':
+        mask = 'unlabeled'
     filename = input_file.split('.')[0]
-    print('Processing ' + filename)
-    white = (255, 255, 255)
-    gray = (127, 127, 127)
-    black = (0, 0, 0)
-    blue = (0, 0, 255)
-    red = (255, 0, 0)
-    req_width = 1024
-    req_height = 1024
-    req_size = (req_width, req_height)
-    r = req_width // 2
-
-
+    print('Processing (phase 2) ' + filename)
     blobs_obj = get_blob_list(os.path.join(report_folder, mask, filename + '.txt'))
     new_circled_image = Image.open(os.path.join(report_folder, mask, filename + "_" + "brightened" + ".png"))
     circled_pixels = new_circled_image.load()
@@ -385,20 +367,10 @@ def process_file(input_file, full_research_mode, mask):
     hash_as_str = str(phash)
     print(hash_as_str)
 
-def run_all(mask):
-    input_files = os.listdir(input_folder)
-    for input_file in sorted(input_files)[::-1]:
-        if '~' in input_file or mask not in input_file:
-            continue
-        process_file(input_file, False, mask)
-
 
 if __name__ == '__main__':
-    os.makedirs(output_folder, exist_ok=True)
-    os.makedirs(bloblist_folder, exist_ok=True)
-    os.makedirs(report_folder, exist_ok=True)
     mask = ''
     for arg in sys.argv:
         if arg.startswith('--mask='):
             mask = arg[7:]
-    run_all(mask)
+    run_all(mask, 2)

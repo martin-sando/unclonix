@@ -15,11 +15,29 @@ from findiff import Gradient, Divergence, Laplacian, Curl
 from skimage import data
 from skimage.feature import blob_dog, blob_log, blob_doh
 from skimage.color import rgb2gray
+import bloblist_operations
 
 input_folder = '../input'
 output_folder = '../output'
 bloblist_folder = output_folder + '/bloblist'
 report_folder = output_folder + '/report'
+
+white = (255, 255, 255)
+gray = (127, 127, 127)
+black = (0, 0, 0)
+blue = (0, 0, 255)
+green = (0, 255, 0)
+red = (255, 0, 0)
+req_width = 1024
+req_height = 1024
+req_size = (req_width, req_height)
+r = req_width // 2
+
+random.seed(566)
+hru_array = []
+for i in range(20):
+    hru = [random.gauss(mu=0.0, sigma=1.0) for _ in range(64)]
+    hru_array.append(hru)
 class Blob:
     def __init__(self, coords, size, brightness=None, dct_128_8=None, color=None):
         self.coords = coords
@@ -172,7 +190,7 @@ def get_circle_image(x0, y0, r0, compression_power, saved_image):
             if (check_inside(x1 + x0, y1 + y0, saved_image.width, saved_image.height)):
                 draw_result.point((x1 + r0, y1 + r0), saved_pixels[x1 + x0, y1 + y0])
             else:
-                draw_result.point((x1 + r0, y1 + r0), (0, 0, 0))
+                draw_result.point((x1 + r0, y1 + r0), black)
     return circle_image
 
 
@@ -190,7 +208,7 @@ def trim(image, req_size, skip_factor):
         for y1 in range(req_height):
             dist = sqrt((x1 - r) ** 2 + (y1 - r) ** 2) / r
             if dist >= 1:
-                draw_result.point((x1, y1), (0, 0, 0))
+                draw_result.point((x1, y1), black)
             else:
                 surrounding_colours = [[], [], []]
                 close_r = int((req_width * 0.02) / skip_factor)
@@ -387,7 +405,6 @@ def get_variance_image(rad_min, rad_max, image, req_width, req_height):
 
 
 def get_partial_image(image, r, req_width, req_height):
-    blue = (0, 0, 255)
     pixels = image.load()
     part_size = 128
     parts_image = Image.new("RGB", ((req_width // part_size), (req_height // part_size)))
@@ -633,15 +650,15 @@ def get_blob_info(image, coords, blobs, mask_num, filename, hru, bound_1, bound_
         closest_blob.coords[0]) + ", " + str(closest_blob.coords[1]) + ")")
 
     draw_result = ImageDraw.Draw(image);
-    draw_result.point(closest_blob.coords, (0, 0, 255))
+    draw_result.point(closest_blob.coords, blue)
     x = int(closest_blob.coords[0])
     y = int(closest_blob.coords[1])
     draw_result.point((x, y), (0, 0, 255))
     for i in range(int(closest_blob.size)):
-        draw_result.point((x, y + i), (0, 0, 255))
-        draw_result.point((x, y - i), (0, 0, 255))
-        draw_result.point((x + i, y), (0, 0, 255))
-        draw_result.point((x - i, y), (0, 0, 255))
+        draw_result.point((x, y + i), blue)
+        draw_result.point((x, y - i), blue)
+        draw_result.point((x + i, y), blue)
+        draw_result.point((x - i, y), blue)
     r = image.width // 2
     angle = atan2((y - r), (x - r))
     blob_img = image.crop(
@@ -676,22 +693,8 @@ def process_file(input_file, full_research_mode, mask):
         mask = 'unlabeled'
     label_folder = report_folder + "/" + str(mask)
     os.makedirs(label_folder, exist_ok=True)
-    random.seed(566)
-    hru_array = []
-    for i in range(20):
-        hru = [random.gauss(mu=0.0, sigma=1.0) for _ in range(64)]
-        hru_array.append(hru)
     filename = input_file.split('.')[0]
     print('Processing ' + filename)
-    white = (255, 255, 255)
-    gray = (127, 127, 127)
-    black = (0, 0, 0)
-    blue = (0, 0, 255)
-    red = (255, 0, 0)
-    req_width = 1024
-    req_height = 1024
-    req_size = (req_width, req_height)
-    r = req_width // 2
 
     input_image = Image.open(os.path.join(input_folder, input_file))
     saved_image = input_image.copy()
@@ -770,12 +773,15 @@ def process_file(input_file, full_research_mode, mask):
 
 
 
-def run_all(mask):
+def run_all(mask, phase):
     input_files = os.listdir(input_folder)
     for input_file in sorted(input_files)[::-1]:
         if '~' in input_file or mask not in input_file:
             continue
-        process_file(input_file, False, mask)
+        if (phase == 1):
+            process_file(input_file, False, mask)
+        else:
+            bloblist_operations.process_file(input_file, False, mask)
 
 
 if __name__ == '__main__':
@@ -786,4 +792,5 @@ if __name__ == '__main__':
     for arg in sys.argv:
         if arg.startswith('--mask='):
             mask = arg[7:]
-    run_all(mask)
+    run_all(mask, 1)
+    run_all(mask, 2)

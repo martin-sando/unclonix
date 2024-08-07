@@ -531,31 +531,6 @@ def add_dcts(input_image, width, height, blobs, cutter_size=128):
         calculated_blobs.append(blob)
     return calculated_blobs
 
-
-def add_colors(blobs, hru_array):
-    colored_blobs = []
-    for blob in blobs:
-        dct_array = blob.dct_128_8
-        colors = [0, 0, 0]
-        sum = 0
-        for i in range(4):
-            for j in range(4):
-                sum += hru_array[0][i * 8 + j] * dct_array[i][j]
-        colors[0] = sum
-        sum = 0
-        for i in range(4):
-            for j in range(4, 8):
-                sum += hru_array[1][i * 8 + j] * dct_array[i][j]
-        colors[1] = sum
-        sum = 0
-        for i in range(4, 8):
-            for j in range(4):
-                sum += hru_array[2][i * 8 + j] * dct_array[i][j]
-        colors[2] = sum
-        blob.color = colors
-        colored_blobs.append(blob)
-    return colored_blobs
-
 def get_angle_image(input_image, width, height, precision, mode, cutter_size=64):
     r = width // 2
     result_array = np.zeros((width, height))
@@ -711,8 +686,6 @@ def process_file(input_file, full_research_mode, mask):
         mask = 'unlabeled'
     label_folder = report_folder + "/" + str(mask)
     list_folder = bloblist_folder + "/" + str(mask)
-    os.makedirs(label_folder, exist_ok=True)
-    os.makedirs(list_folder, exist_ok=True)
     filename = input_file.split('.')[0]
     print('Processing ' + filename)
 
@@ -795,11 +768,10 @@ def process_file(input_file, full_research_mode, mask):
 
     blobs_obj = brighten_blobs(new_circled_image, blobs_obj)
     blobs_obj = add_dcts(new_circled_image, req_width, req_height, blobs_obj)
-    blobs_obj = add_colors(blobs_obj, hru_array)
-    text_file = open(os.path.join(bloblist_folder, mask, filename + '.txt'), 'w')
+    text_file = open(os.path.join(bloblist_folder, filename + '.txt'), 'w')
     for blob in blobs_obj:
         blob.log(text_file)
-    new_circled_image.save(os.path.join(report_folder, mask, filename + "_" + "brightened" + ".png"))
+    new_circled_image.save(os.path.join(report_folder, filename + "_" + "brightened" + ".png"))
 
 
 

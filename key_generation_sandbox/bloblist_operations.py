@@ -31,6 +31,29 @@ def get_best_color(blobs, amount, color_num):
             best_blobs.append(blob)
     return best_blobs
 
+def add_colors(blobs, hru_array):
+    colored_blobs = []
+    for blob in blobs:
+        dct_array = blob.dct_128_8
+        colors = [0, 0, 0]
+        sum = 0
+        for i in range(4):
+            for j in range(4):
+                sum += hru_array[0][i * 8 + j] * dct_array[i][j]
+        colors[0] = sum
+        sum = 0
+        for i in range(4):
+            for j in range(4, 8):
+                sum += hru_array[1][i * 8 + j] * dct_array[i][j]
+        colors[1] = sum
+        sum = 0
+        for i in range(4, 8):
+            for j in range(4):
+                sum += hru_array[2][i * 8 + j] * dct_array[i][j]
+        colors[2] = sum
+        blob.color = colors
+        colored_blobs.append(blob)
+    return colored_blobs
 def find_triangles(r, best_blobs_color, req_angles, threshold):
     triangles = []
     for blob1 in best_blobs_color[0]:
@@ -271,8 +294,9 @@ def process_file(input_file, full_research_mode, mask):
         mask = 'unlabeled'
     filename = input_file.split('.')[0]
     print('Processing (phase 2) ' + filename)
-    blobs_obj = get_blob_list(os.path.join(bloblist_folder, mask, filename + '.txt'))
-    new_circled_image = Image.open(os.path.join(report_folder, mask, filename + "_" + "brightened" + ".png"))
+    blobs_obj = get_blob_list(os.path.join(bloblist_folder, filename + '.txt'))
+    blobs_obj = add_colors(blobs_obj, hru_array)
+    new_circled_image = Image.open(os.path.join(report_folder, filename + "_" + "brightened" + ".png"))
     circled_pixels = new_circled_image.load()
 
     log_picture_number = 0
@@ -280,8 +304,8 @@ def process_file(input_file, full_research_mode, mask):
         nonlocal log_picture_number
         log_picture_number += 1
         tag = 'p' + str(log_picture_number).zfill(2) + tag
-        image.save(os.path.join(report_folder, mask, filename + "_" + tag + ".png"))
-        image.save(os.path.join(report_folder, mask, tag + "_" + filename + ".png"))
+        image.save(os.path.join(report_folder, filename + "_" + tag + ".png"))
+        image.save(os.path.join(report_folder, tag + "_" + filename + ".png"))
 
     red_blobs = get_best_color(blobs_obj, 50, 0)
     green_blobs = get_best_color(blobs_obj, 50, 1)

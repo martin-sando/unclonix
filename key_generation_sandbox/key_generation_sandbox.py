@@ -256,6 +256,24 @@ def brighten(image, bright_coef):
             draw_result.point((x1, y1), (color, color, color))
     return image
 
+def clear_noize(image, power):
+    pixels = image.load()
+    draw_result = ImageDraw.Draw(image)
+    for x1 in range(image.width):
+        for y1 in range(image.height):
+            total_brightness = 0
+            for dx in range(-3, 4):
+                for dy in range(-3, 4):
+                    if check_inside(x1 + dx, y1 + dy, image.width, image.height):
+                        dist = dx**2 + dy**2
+                        if (dist > 9):
+                            continue
+                        total_brightness += pixels[x1 + dx, y1 + dy][0] ** 2
+            color = int(pixels[x1, y1][0])
+            if (total_brightness < power):
+                color = 0
+            draw_result.point((x1, y1), (color, color, color))
+    return image
 
 def brighten_blobs(image, blobs):
     pixels = image.load()
@@ -740,12 +758,25 @@ def process_file(input_file, full_research_mode, mask):
     x, y = [np.linspace(0, req_width - 1, req_width)] * 2
     dx, dy = [c[1] - c[0] for c in (x, y)]
     lap = Laplacian(h=[dx, dy])
+    circle_array = to_array(new_circled_image)
+    lap_array = lap(circle_array) * 5
+    lap_image = to_image(lap_array, req_width, req_height)
+
+    save(lap_image, 'laplacian1')
+
+    circled_array = to_array(new_circled_image)
+    circled_array = cv2.GaussianBlur(circled_array,(15, 15),0)
+    new_circled_image = to_image(circled_array, req_width, req_height)
+    save(new_circled_image, 'g_blur')
+
+    new_circled_image = clear_noize(new_circled_image, power=20000)
+    save(new_circled_image, 'reduced_noise')
 
     circle_array = to_array(new_circled_image)
     lap_array = lap(circle_array) * 5
     lap_image = to_image(lap_array, req_width, req_height)
 
-    save(lap_image, 'laplacian')
+    save(lap_image, 'laplacian2')
 
     new_circled_image = new_circled_image.copy()
     circled_pixels = new_circled_image.load()

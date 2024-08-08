@@ -307,11 +307,11 @@ def process_file(input_file, full_research_mode, mask):
         image.save(os.path.join(report_folder, filename + "_" + tag + ".png"))
         image.save(os.path.join(report_folder, tag + "_" + filename + ".png"))
 
-    red_blobs = get_best_color(blobs_obj, 50, 0)
-    green_blobs = get_best_color(blobs_obj, 50, 1)
-    blue_blobs = get_best_color(blobs_obj, 50, 2)
+    red_blobs = get_best_color(blobs_obj, 1, 0)
+    green_blobs = get_best_color(blobs_obj, 1, 1)
+    blue_blobs = get_best_color(blobs_obj, 1, 2)
     colors_blobs = [red_blobs, green_blobs, blue_blobs]
-    triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 2)
+    triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 200)
     copy_image = new_circled_image.copy()
     triangles_image = draw_triangles(copy_image, triangles, colors_blobs)
     save(triangles_image, 'chaos')

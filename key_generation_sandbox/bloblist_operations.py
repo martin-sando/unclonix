@@ -9,7 +9,7 @@ from findiff import Gradient, Divergence, Laplacian, Curl
 import utils
 check_inside = utils.check_inside
 black, blue, red, green, white = utils.black, utils.blue, utils.red, utils.green, utils.white
-input_folder, output_folder, bloblist_folder, report_folder = utils.input_folder, utils.output_folder, utils.bloblist_folder, utils.report_folder
+input_folder, output_folder, bloblist_folder, report_folder, time_folder = utils.input_folder, utils.output_folder, utils.bloblist_folder, utils.report_folder, utils.time_folder
 req_size, req_width, req_height = utils.req_size, utils.req_width, utils.req_height
 to_array, to_image = utils.to_array, utils.to_image
 hru_array = utils.hru_array
@@ -290,6 +290,7 @@ def process_photo(input_file, full_research_mode, mask):
         mask = 'unlabeled'
     filename = input_file.split('.')[0]
     utils.set_file_name(filename)
+    utils.set_phase_time(2)
     utils.set_picture_number(utils.image_processing_picture_number_end)
     print('Processing (phase 2) ' + filename)
     blobs_obj = utils.get_blob_list(os.path.join(bloblist_folder, filename + '.txt'))
@@ -305,6 +306,7 @@ def process_photo(input_file, full_research_mode, mask):
     copy_image = new_circled_image.copy()
     triangles_image = draw_triangles(copy_image, triangles, colors_blobs)
     save(triangles_image, 'chaos')
+    utils.set_last_time('finding triangle and drawing it')
 
     pairs = [(3, 5)]
     dots = [(6, 2)]
@@ -326,6 +328,7 @@ def process_photo(input_file, full_research_mode, mask):
     field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru_array, 0, 3, contrast=70, cell=False, scale=True,
                                   blobs=None, rgb=False, tournament=False)
     save(field_image, 'field_image_array' + '0' + '..' + '5')
+    utils.set_last_time('drawing various fields')
 
     if not full_research_mode:
         return
@@ -379,3 +382,4 @@ def process_photo(input_file, full_research_mode, mask):
     phash = imagehash.phash(new_circled_image)
     hash_as_str = str(phash)
     print(hash_as_str)
+    utils.set_last_time('finishing_labor')

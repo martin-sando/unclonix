@@ -4,7 +4,7 @@ import bloblist_operations
 import image_processing
 import utils
 
-input_folder, output_folder, bloblist_folder, report_folder = utils.input_folder, utils.output_folder, utils.bloblist_folder, utils.report_folder
+input_folder, output_folder, bloblist_folder, report_folder, time_folder = utils.input_folder, utils.output_folder, utils.bloblist_folder, utils.report_folder, utils.time_folder
 
 def run_all(mask):
     input_files = os.listdir(input_folder)
@@ -21,6 +21,8 @@ if __name__ == '__main__':
     os.makedirs(output_folder, exist_ok=True)
     os.makedirs(bloblist_folder, exist_ok=True)
     os.makedirs(report_folder, exist_ok=True)
+    os.makedirs(time_folder, exist_ok=True)
+    utils.set_total_time()
     mask = ''
     for arg in sys.argv:
         if arg.startswith('--mask='):

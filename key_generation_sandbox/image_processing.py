@@ -18,7 +18,7 @@ import utils
 
 check_inside = utils.check_inside
 black, blue, red, green, white = utils.black, utils.blue, utils.red, utils.green, utils.white
-input_folder, output_folder, bloblist_folder, report_folder = utils.input_folder, utils.output_folder, utils.bloblist_folder, utils.report_folder
+input_folder, output_folder, bloblist_folder, report_folder, time_folder = utils.input_folder, utils.output_folder, utils.bloblist_folder, utils.report_folder, utils.time_folder
 req_size, req_width, req_height = utils.req_size, utils.req_width, utils.req_height
 to_array, to_image = utils.to_array, utils.to_image
 save = utils.save
@@ -513,6 +513,7 @@ def process_photo(input_file, full_research_mode, mask):
     list_folder = bloblist_folder + "/" + str(mask)
     filename = input_file.split('.')[0]
     utils.set_file_name(filename)
+    utils.set_phase_time(1)
     print('Processing ' + filename)
 
     input_image = Image.open(os.path.join(input_folder, input_file))
@@ -526,12 +527,15 @@ def process_photo(input_file, full_research_mode, mask):
     input_image = return_grayscale(input_image, width, height)
 
     save(input_image, 'to_gray')
+    utils.set_last_time('returning grayscale')
 
     input_image = input_image.resize((width // compression_power, height // compression_power))
     save(input_image, 'compressed')
+    utils.set_last_time('compressing')
 
     logo_image = find_circle_ph1(input_image, compression_power, saved_image)
     save(logo_image, 'large_circle')
+    utils.set_last_time('finding_circle (phase 1)')
 
     compression_power = logo_image.width // 200
     circled_image = find_circle_ph2(logo_image, req_size, compression_power)
@@ -539,14 +543,17 @@ def process_photo(input_file, full_research_mode, mask):
     circled_image = circled_image.copy()
     saved_circle_image = circled_image.copy()
     save(circled_image, 'circled')
+    utils.set_last_time('finding_circle (phase 2)')
 
     new_circled_image = trim(circled_image, req_size, skip_factor=(circled_image.width // 150))
     save(new_circled_image, 'trimmed')
+    utils.set_last_time('converting to gray')
 
     utils.set_picture_number(utils.image_processing_picture_number_result)
 
     new_circled_image = brighten(new_circled_image, bright_coef=15)
     save(new_circled_image, utils.result_tag)
+    utils.set_last_time('brightening')
 
     x, y = [np.linspace(0, req_width - 1, req_width)] * 2
     dx, dy = [c[1] - c[0] for c in (x, y)]
@@ -556,20 +563,24 @@ def process_photo(input_file, full_research_mode, mask):
     lap_image = to_image(lap_array, req_width, req_height)
 
     save(lap_image, 'laplacian1')
+    utils.set_last_time('calculating laplacian1')
 
     circled_array = to_array(new_circled_image)
     circled_array = cv2.GaussianBlur(circled_array,(15, 15),0)
     new_circled_image = to_image(circled_array, req_width, req_height)
     save(new_circled_image, 'g_blur')
+    utils.set_last_time('calculating gaussian blur')
 
     new_circled_image = clear_noize(new_circled_image, power=20000)
     save(new_circled_image, 'reduced_noise')
+    utils.set_last_time('reducing noise')
 
     circle_array = to_array(new_circled_image)
     lap_array = lap(circle_array) * 5
     lap_image = to_image(lap_array, req_width, req_height)
 
     save(lap_image, 'laplacian2')
+    utils.set_last_time('calculating laplacian2')
 
     new_circled_image = new_circled_image.copy()
     circled_pixels = new_circled_image.load()
@@ -591,3 +602,4 @@ def process_photo(input_file, full_research_mode, mask):
     text_file = open(os.path.join(bloblist_folder, filename + '.txt'), 'w')
     for blob in blobs_obj:
         blob.log(text_file)
+    utils.set_last_time('logging blobs')

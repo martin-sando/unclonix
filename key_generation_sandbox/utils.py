@@ -5,11 +5,13 @@ from math import atan2, pi
 import numpy as np
 from PIL import Image, ImageDraw
 from Blob import Blob
+import datetime
 
 input_folder = '../input'
 output_folder = '../output'
 bloblist_folder = output_folder + '/bloblist'
 report_folder = output_folder + '/report'
+time_folder = output_folder + '/time'
 
 white = (255, 255, 255)
 gray = (127, 127, 127)
@@ -177,3 +179,31 @@ result_tag = '_processed'
 
 def get_result_name():
     return os.path.join(output_folder, filename + "_" + "p" + str(image_processing_picture_number_result).zfill(2) + "_processed" + ".png")
+
+start_time = None
+phase_time = None
+last_time = None
+time_file = None
+
+def set_total_time():
+    global start_time
+    time = datetime.datetime.now()
+    start_time = time
+def set_phase_time(phase_num):
+    global time_file
+    time_file = open(os.path.join(time_folder, filename + '.txt'), 'a')
+    global phase_time
+    global last_time
+    time = datetime.datetime.now()
+    last_time = time
+    phase_time = time
+    time_file.write("Starting phase " + str(phase_num) + ", now is " + str(time) + "\n")
+def set_last_time(log):
+    global time_file
+    global start_time
+    global last_time
+    time = datetime.datetime.now()
+    time_file.write("Finished doing " + log + "\n")
+    time_file.write(", now is " + str(time) + ", " + str(time - last_time) + " elapsed since last measure, " + '\n')
+    time_file.write(str(time - phase_time) + " elapsed total since phase start, " + str(time - start_time) + " elapsed total since work start" + '\n')
+    last_time = time

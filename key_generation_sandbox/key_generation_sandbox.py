@@ -15,7 +15,7 @@ from findiff import Gradient, Divergence, Laplacian, Curl
 from skimage import data
 from skimage.feature import blob_dog, blob_log, blob_doh
 from skimage.color import rgb2gray
-import bloblist_operations
+from bloblist_operations import process_file2
 
 input_folder = '../input'
 output_folder = '../output'
@@ -785,7 +785,7 @@ def run_all(mask, phase):
         if (phase == 1):
             process_file(input_file, False, mask)
         else:
-            bloblist_operations.process_file(input_file, False, mask)
+            process_file2(input_file, False, mask)
 
 
 if __name__ == '__main__':

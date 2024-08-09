@@ -289,7 +289,7 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
                 draw_result.point((x, y), color)
 
     return field_image
-def process_file(input_file, full_research_mode, mask):
+def process_file2(input_file, full_research_mode, mask):
     if mask == '':
         mask = 'unlabeled'
     filename = input_file.split('.')[0]

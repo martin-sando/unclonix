@@ -172,3 +172,8 @@ def save(image, tag):
     image.save(os.path.join(output_folder, filename + "_" + tag + ".png"))
     image.save(os.path.join(output_folder, tag + "_" + filename + ".png"))
     log_picture_number += 1
+
+result_tag = '_processed'
+
+def get_result_name():
+    return os.path.join(output_folder, filename + "_" + "p" + str(image_processing_picture_number_result).zfill(2) + "_processed" + ".png")

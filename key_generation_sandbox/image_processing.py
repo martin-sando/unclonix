@@ -546,7 +546,7 @@ def process_photo(input_file, full_research_mode, mask):
     utils.set_picture_number(utils.image_processing_picture_number_result)
 
     new_circled_image = brighten(new_circled_image, bright_coef=15)
-    save(new_circled_image, 'brightened')
+    save(new_circled_image, utils.result_tag)
 
     x, y = [np.linspace(0, req_width - 1, req_width)] * 2
     dx, dy = [c[1] - c[0] for c in (x, y)]

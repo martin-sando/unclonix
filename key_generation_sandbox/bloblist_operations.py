@@ -294,7 +294,7 @@ def process_photo(input_file, full_research_mode, mask):
     print('Processing (phase 2) ' + filename)
     blobs_obj = utils.get_blob_list(os.path.join(bloblist_folder, filename + '.txt'))
     blobs_obj = add_colors(blobs_obj, hru_array)
-    new_circled_image = Image.open(os.path.join(output_folder, filename + "_" + "p" + str(utils.image_processing_picture_number_result).zfill(2) + "brightened" + ".png"))
+    new_circled_image = Image.open(utils.get_result_name())
     circled_pixels = new_circled_image.load()
 
     red_blobs = get_best_color(blobs_obj, 50, 0)

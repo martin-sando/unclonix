@@ -1,33 +1,29 @@
 import os.path
 import sys
-
 import cv2
 import imagehash
-import json
-import random
-from key_generation_sandbox import (Blob, check_inside, to_image, to_array, input_folder, output_folder, bloblist_folder, report_folder, run_all,
-                                    req_size, req_width, req_height, white, black, red, green, blue, hru_array)
 from PIL import Image, ImageDraw
 import numpy as np
-from math import sqrt
 from math import sqrt, pi, cos, sin, exp, atan2
 from findiff import Gradient, Divergence, Laplacian, Curl
-def get_blob_list(filename):
-    text_read = open(filename)
-    blobs=[]
-    for line in text_read:
-        blob = Blob.unpack(line)
-        blobs.append(blob)
-    return blobs
+import utils
+check_inside = utils.check_inside
+black, blue, red, green, white = utils.black, utils.blue, utils.red, utils.green, utils.white
+input_folder, output_folder, bloblist_folder, report_folder = utils.input_folder, utils.output_folder, utils.bloblist_folder, utils.report_folder
+req_size, req_width, req_height = utils.req_size, utils.req_width, utils.req_height
+to_array, to_image = utils.to_array, utils.to_image
+hru_array = utils.hru_array
+save = utils.save
 
+color_dict = dict()
 def get_best_color(blobs, amount, color_num):
     colors = []
     for blob in blobs:
-        colors.append(blob.color[color_num])
+        colors.append(color_dict[blob][color_num])
     colors.sort()
     best_blobs = []
     for blob in blobs:
-        if (blob.color[color_num] >= colors[len(blobs) - amount]):
+        if (color_dict[blob][color_num] >= colors[len(blobs) - amount]):
             best_blobs.append(blob)
     return best_blobs
 
@@ -51,7 +47,7 @@ def add_colors(blobs, hru_array):
             for j in range(4):
                 sum += hru_array[2][i * 8 + j] * dct_array[i][j]
         colors[2] = sum
-        blob.color = colors
+        color_dict[blob] = colors
         colored_blobs.append(blob)
     return colored_blobs
 def find_triangles(r, best_blobs_color, req_angles, threshold):
@@ -289,33 +285,26 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
                 draw_result.point((x, y), color)
 
     return field_image
-def process_file2(input_file, full_research_mode, mask):
+def process_photo(input_file, full_research_mode, mask):
     if mask == '':
         mask = 'unlabeled'
     filename = input_file.split('.')[0]
+    utils.set_file_name(filename)
+    utils.set_picture_number(utils.image_processing_picture_number_end)
     print('Processing (phase 2) ' + filename)
-    blobs_obj = get_blob_list(os.path.join(bloblist_folder, filename + '.txt'))
+    blobs_obj = utils.get_blob_list(os.path.join(bloblist_folder, filename + '.txt'))
     blobs_obj = add_colors(blobs_obj, hru_array)
-    new_circled_image = Image.open(os.path.join(report_folder, filename + "_" + "brightened" + ".png"))
+    new_circled_image = Image.open(os.path.join(output_folder, filename + "_" + "p" + str(utils.image_processing_picture_number_result).zfill(2) + "brightened" + ".png"))
     circled_pixels = new_circled_image.load()
 
-    log_picture_number = 0
-    def save(image, tag):
-        nonlocal log_picture_number
-        log_picture_number += 1
-        tag = 'p' + str(log_picture_number).zfill(2) + tag
-        image.save(os.path.join(report_folder, filename + "_" + tag + ".png"))
-        image.save(os.path.join(report_folder, tag + "_" + filename + ".png"))
-
-    red_blobs = get_best_color(blobs_obj, 1, 0)
-    green_blobs = get_best_color(blobs_obj, 1, 1)
-    blue_blobs = get_best_color(blobs_obj, 1, 2)
+    red_blobs = get_best_color(blobs_obj, 50, 0)
+    green_blobs = get_best_color(blobs_obj, 50, 1)
+    blue_blobs = get_best_color(blobs_obj, 50, 2)
     colors_blobs = [red_blobs, green_blobs, blue_blobs]
-    triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 200)
+    triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 2)
     copy_image = new_circled_image.copy()
     triangles_image = draw_triangles(copy_image, triangles, colors_blobs)
     save(triangles_image, 'chaos')
-
 
     pairs = [(3, 5)]
     dots = [(6, 2)]
@@ -390,11 +379,3 @@ def process_file2(input_file, full_research_mode, mask):
     phash = imagehash.phash(new_circled_image)
     hash_as_str = str(phash)
     print(hash_as_str)
-
-
-if __name__ == '__main__':
-    mask = ''
-    for arg in sys.argv:
-        if arg.startswith('--mask='):
-            mask = arg[7:]
-    run_all(mask, 2)

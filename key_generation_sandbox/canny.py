@@ -112,19 +112,8 @@ def filter_strong_edges(gradient, width, height, low, high):
 
     return list(keep)
 
-def return_grayscale(input_image, width, height):
-    grayscale= Image.new("RGB", input_image.size)
-    input_pixels = input_image.load()
-    draw = ImageDraw.Draw(grayscale)
-    for x in range(width):
-        for y in range(height):
-            pixel = input_pixels[x, y]
-            shade = (pixel[0] + pixel[1] + pixel[2]) // 3
-            draw.point((x, y),(shade, shade, shade))
-    return grayscale
-
 def find_circles(input_image, rmin, rmax, precision):
-    steps = 100
+    steps = 30
     threshold = precision
 
     points = []

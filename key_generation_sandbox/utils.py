@@ -167,13 +167,21 @@ log_picture_number = 0
 def set_picture_number(number):
     global log_picture_number
     log_picture_number = number
-def save(image, tag):
+def save(image, tag, subfolder=''):
     global log_picture_number
     global filename
     tag = 'p' + str(log_picture_number).zfill(2) + tag
-    image.save(os.path.join(output_folder, filename + "_" + tag + ".png"))
-    image.save(os.path.join(output_folder, tag + "_" + filename + ".png"))
+    if subfolder == '':
+        image.save(os.path.join(output_folder, filename + "_" + tag + ".png"))
+        image.save(os.path.join(output_folder, tag + "_" + filename + ".png"))
+    else:
+        image.save(os.path.join(output_folder, subfolder, filename + "_" + tag + ".png"))
+        image.save(os.path.join(output_folder, subfolder, tag + "_" + filename + ".png"))
     log_picture_number += 1
+
+def save_report(image, tag):
+    save(image, tag, "report")
+
 
 result_tag = '_processed'
 
@@ -207,3 +215,15 @@ def set_last_time(log):
     time_file.write(", now is " + str(time) + ", " + str(time - last_time) + " elapsed since last measure, " + '\n')
     time_file.write(str(time - phase_time) + " elapsed total since phase start, " + str(time - start_time) + " elapsed total since work start" + '\n')
     last_time = time
+
+save_subfolder = ''
+def set_save_subfolder(subfolder):
+    global save_subfolder
+    save_subfolder = subfolder
+
+def run_experiment(method, *method_args):
+    method_name = method.__name__
+    result_image = method(*method_args)
+    save(result_image, method_name, save_subfolder)
+    set_last_time(method_name)
+    return result_image

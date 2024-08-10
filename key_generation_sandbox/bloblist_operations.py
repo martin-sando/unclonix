@@ -13,7 +13,8 @@ input_folder, output_folder, bloblist_folder, report_folder, time_folder = utils
 req_size, req_width, req_height = utils.req_size, utils.req_width, utils.req_height
 to_array, to_image = utils.to_array, utils.to_image
 hru_array = utils.hru_array
-save = utils.save
+save, save_report = utils.save, utils.save_report
+run_experiment = utils.run_experiment
 
 color_dict = dict()
 def get_best_color(blobs, amount, color_num):
@@ -102,15 +103,15 @@ def draw_triangles(image, triangles, best_blobs_color):
         draw.line([(blob2.coords[0], blob2.coords[1]), (blob3.coords[0], blob3.coords[1])], fill="green", width=0)
         draw.line([(blob3.coords[0], blob3.coords[1]), (blob1.coords[0], blob1.coords[1])], fill="blue", width=0)
 
-    for i in range(3):
-        for blob in best_blobs_color[i]:
+    for clr in range(3):
+        for blob in best_blobs_color[clr]:
             coords = blob.coords
             color = (0, 0, 0)
-            if i == 0:
+            if clr == 0:
                 color = red
-            if i == 1:
+            if clr == 1:
                 color = green
-            if i == 2:
+            if clr == 2:
                 color = blue
             draw.point(coords, color)
             for i in range(6):
@@ -131,7 +132,7 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
     total_sum3 = 0
     req_dots = []
     dct_fields = []
-    dct_count = 0;
+    dct_count = 0
     i_range = range(low_b, up_b + 1)
     j_range = range(low_b, up_b + 1)
     if cell:
@@ -285,57 +286,95 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
                 draw_result.point((x, y), color)
 
     return field_image
-def process_photo(input_file, full_research_mode, mask):
-    if mask == '':
-        mask = 'unlabeled'
-    filename = input_file.split('.')[0]
-    utils.set_file_name(filename)
-    utils.set_phase_time(2)
-    utils.set_picture_number(utils.image_processing_picture_number_end)
-    print('Processing (phase 2) ' + filename)
-    blobs_obj = utils.get_blob_list(os.path.join(bloblist_folder, filename + '.txt'))
+
+def get_angle_image(input_image, width, height, precision, mode, cutter_size=64):
+    r = width // 2
+    result_array = np.zeros((width, height))
+    for x in range(width // precision):
+        for y in range(height // precision):
+            coord_0 = x * precision
+            coord_1 = y * precision
+            dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
+            if dist > 0.7:
+                continue
+            angle = atan2((coord_1 - r), (coord_0 - r))
+            blob_img = input_image.crop(
+                (coord_0 - cutter_size, coord_1 - cutter_size, coord_0 + cutter_size, coord_1 + cutter_size))
+            rot_image = blob_img.rotate((angle * (180 / pi)))
+            blob_img = rot_image.crop(
+                (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
+            blob_pixels = blob_img.load()
+
+            array_image = np.zeros((cutter_size, cutter_size))
+            for x1 in range(cutter_size):
+                for y1 in range(cutter_size):
+                    array_image[x1, y1] = blob_pixels[x1, y1][0] + 0.0
+
+            score1 = 0
+            if mode == "r" or mode == "both":
+                for x1 in range(cutter_size):
+                    for y1 in range(cutter_size // 2):
+                        y2 = cutter_size - 1 - y1
+                        score1 += abs(array_image[x1, y1] - 128) + abs(array_image[x1, y2] - 128) - 2.5 * abs(
+                            array_image[x1, y1] - array_image[x1, y2])
+                score1 = max(score1, 0)
+
+            score2 = 0
+            if mode == "arc" or mode == "both":
+                for x1 in range(cutter_size // 2):
+                    for y1 in range(cutter_size):
+                        x2 = cutter_size - 1 - x1
+                        score2 += abs(array_image[x1, y1] - 128) + abs(array_image[x2, y1] - 128) - 2.5 * abs(
+                            array_image[x1, y1] - array_image[x2, y1])
+                score2 = max(score2, 0)
+            result_array[coord_0, coord_1] = min(score1, score2)
+
+    for x in range(width // precision):
+        for y in range(height // precision):
+            for x1 in range(precision):
+                for y1 in range(precision):
+                    if x1 + y1 == 0:
+                        continue
+                    coord_0 = x * precision + x1
+                    coord_1 = y * precision + y1
+                    dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
+                    if dist > 0.7:
+                        continue
+                    comp_1 = result_array[x * precision, y * precision] * (1 - x1 / precision) * (1 - y1 / precision)
+                    comp_2 = result_array[x * precision, y * precision + precision] * (1 - x1 / precision) * (
+                            y1 / precision)
+                    comp_3 = result_array[x * precision + precision, y * precision] * (x1 / precision) * (
+                            1 - y1 / precision)
+                    comp_4 = result_array[x * precision + precision, y * precision + precision] * (x1 / precision) * (
+                            y1 / precision)
+                    result_array[coord_0, coord_1] = comp_1 + comp_2 + comp_3 + comp_4
+    field_image = Image.new("RGB", [width, height])
+    draw_result = ImageDraw.Draw(field_image)
+    scaling = (cutter_size * cutter_size) * 0.1
+    for x in range(width):
+        for y in range(height):
+            dist = sqrt((x - r) ** 2 + (y - r) ** 2) / r
+            color = 0
+            if dist < 0.7:
+                color = int(result_array[x, y] / scaling)
+            draw_result.point((x, y), (color, color, color))
+    return field_image
+
+
+def find_draw_triangles(image, blobs_obj):
     blobs_obj = add_colors(blobs_obj, hru_array)
-    new_circled_image = Image.open(utils.get_result_name())
-    circled_pixels = new_circled_image.load()
+    circled_pixels = image.load()
 
     red_blobs = get_best_color(blobs_obj, 50, 0)
     green_blobs = get_best_color(blobs_obj, 50, 1)
     blue_blobs = get_best_color(blobs_obj, 50, 2)
     colors_blobs = [red_blobs, green_blobs, blue_blobs]
     triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 2)
-    copy_image = new_circled_image.copy()
+    copy_image = image.copy()
     triangles_image = draw_triangles(copy_image, triangles, colors_blobs)
-    save(triangles_image, 'chaos')
-    utils.set_last_time('finding triangle and drawing it')
+    return triangles_image
 
-    pairs = [(3, 5)]
-    dots = [(6, 2)]
-    for pair in pairs:
-        field_image = get_field_image(new_circled_image, req_width, req_height, precision=10, contrast=70,
-                                      hru=hru_array, low_b=pair[0], up_b=pair[1], cell=False, scale=True, blobs=None,
-                                      rgb=True, tournament=False)
-        save(field_image, 'field_image_array' + str(pair[0]) + '..' + str(pair[1]))
-
-    for dot in dots:
-        field_image = get_field_image(new_circled_image, req_width, req_height, precision=10, contrast=70,
-                                      hru=hru_array, low_b=dot[0], up_b=dot[1], cell=True, scale=True, blobs=None,
-                                      rgb=True, tournament=False)
-        save(field_image, 'field_image_dot' + str(dot[0]) + '.' + str(dot[1]))
-
-    field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru_array, 0, 3, contrast=70, cell=False, scale=True,
-                                  blobs=blobs_obj, rgb=False, tournament=False)
-    save(field_image, 'field_image_blob' + '0' + '..' + '5')
-    field_image = get_field_image(new_circled_image, req_width, req_height, 10, hru_array, 0, 3, contrast=70, cell=False, scale=True,
-                                  blobs=None, rgb=False, tournament=False)
-    save(field_image, 'field_image_array' + '0' + '..' + '5')
-    utils.set_last_time('drawing various fields')
-
-    if not full_research_mode:
-        return
-
-
-    log_picture = new_circled_image.copy()
-
+def blobs_image(blobs_obj):
     blob_array = np.zeros((req_width, req_height))
     for blob in blobs_obj:
         x = blob.coords[0]
@@ -350,26 +389,41 @@ def process_photo(input_file, full_research_mode, mask):
                         blob_array[int(x + i), int(y + j)] += exp(-((dist / sigma) / 2)) * brightness
 
     blob_image = to_image(blob_array, req_width, req_height)
-    save(blob_image, 'blobs_image')
+    return blob_image
 
-    x, y = [np.linspace(0, req_width - 1, req_width)] * 2
-    dx, dy = [c[1] - c[0] for c in (x, y)]
-    lap = Laplacian(h=[dx, dy])
+def generate_some_fields(image, blobs_obj):
+    pairs = [(3, 5)]
+    dots = [(6, 2)]
+    for pair in pairs:
+        field_image = get_field_image(image, req_width, req_height, precision=20, contrast=70,
+                                      hru=hru_array, low_b=pair[0], up_b=pair[1], cell=False, scale=True, blobs=None,
+                                      rgb=True, tournament=False)
+        save_report(field_image, 'field_image_array' + str(pair[0]) + '..' + str(pair[1]))
 
-    circle_array = to_array(new_circled_image)
-    lap_array = lap(circle_array) * 5
-    lap_image = to_image(lap_array, req_width, req_height)
+    for dot in dots:
+        field_image = get_field_image(image, req_width, req_height, precision=20, contrast=70,
+                                      hru=hru_array, low_b=dot[0], up_b=dot[1], cell=True, scale=True, blobs=None,
+                                      rgb=True, tournament=False)
+        save_report(field_image, 'field_image_dot' + str(dot[0]) + '.' + str(dot[1]))
 
-    save(lap_image, 'laplacian')
+    field_image = get_field_image(image, req_width, req_height, 20, hru_array, 0, 3, contrast=70, cell=False, scale=True,
+                                  blobs=blobs_obj, rgb=False, tournament=False)
+    save(field_image, 'field_image_blob' + '0' + '..' + '5')
+    field_image = get_field_image(image, req_width, req_height, 20, hru_array, 0, 3, contrast=70, cell=False, scale=True,
+                                  blobs=None, rgb=False, tournament=False)
+    save_report(field_image, 'field_image_array' + '0' + '..' + '5')
+    utils.set_last_time('drawing various fields')
+    return image
 
+def get_dct(image, dct_size):
+    pixels = image.load()
     array_image = np.zeros((req_width, req_height))
     for x1 in range(req_width):
         for y1 in range(req_height):
-            array_image[x1, y1] = circled_pixels[x1, y1][0] + 0.0
+            array_image[x1, y1] = pixels[x1, y1][0] + 0.0
 
     dct_array = cv2.dct(array_image)
 
-    dct_size = 32
     dct_image = Image.new("RGB", [dct_size, dct_size])
     draw_result = ImageDraw.Draw(dct_image)
     for x1 in range(dct_size):
@@ -377,9 +431,32 @@ def process_photo(input_file, full_research_mode, mask):
             color = int(dct_array[x1, y1])
             draw_result.point((x1, y1), (color, color, color))
 
-    save(dct_image, 'dct')
+    return dct_image
 
-    phash = imagehash.phash(new_circled_image)
+def process_photo(input_file, full_research_mode, mask):
+    if mask == '':
+        mask = 'unlabeled'
+    filename = input_file.split('.')[0]
+    utils.set_file_name(filename)
+    utils.set_phase_time(2)
+    utils.set_picture_number(utils.image_processing_picture_number_end)
+    utils.set_save_subfolder('report')
+    print('Processing (phase 2) ' + filename)
+    blobs_obj = utils.get_blob_list(os.path.join(bloblist_folder, filename + '.txt'))
+    image = Image.open(utils.get_result_name())
+
+    run_experiment(find_draw_triangles, image, blobs_obj)
+
+    run_experiment(generate_some_fields, image, blobs_obj)
+
+    if not full_research_mode:
+        return
+
+    run_experiment(blobs_image, blobs_obj)
+
+    run_experiment(get_dct, image, 32)
+
+    phash = imagehash.phash(image)
     hash_as_str = str(phash)
     print(hash_as_str)
     utils.set_last_time('finishing_labor')

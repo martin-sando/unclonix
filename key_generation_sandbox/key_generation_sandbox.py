@@ -14,7 +14,7 @@ def run_all(mask):
         filename = input_file.split('.')[0]
         if not os.path.isfile(os.path.join(bloblist_folder, filename + '.txt')):
             image_processing.process_photo(input_file, False, mask)
-        bloblist_operations.process_photo(input_file, False, mask)
+        bloblist_operations.process_photo(input_file, True, mask)
 
 
 if __name__ == '__main__':

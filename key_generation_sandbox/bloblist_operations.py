@@ -408,7 +408,7 @@ def generate_some_fields(image, blobs_obj):
 
     field_image = get_field_image(image, req_width, req_height, 20, hru_array, 0, 3, contrast=70, cell=False, scale=True,
                                   blobs=blobs_obj, rgb=False, tournament=False)
-    save(field_image, 'field_image_blob' + '0' + '..' + '5')
+    save_report(field_image, 'field_image_blob' + '0' + '..' + '5')
     field_image = get_field_image(image, req_width, req_height, 20, hru_array, 0, 3, contrast=70, cell=False, scale=True,
                                   blobs=None, rgb=False, tournament=False)
     save_report(field_image, 'field_image_array' + '0' + '..' + '5')

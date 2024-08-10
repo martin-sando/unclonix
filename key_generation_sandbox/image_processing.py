@@ -155,8 +155,6 @@ def trimming(image, skip_factor, precision):
                           surrounding_colours[2][len(surrounding_colours[2]) // 2]]
                 median_field[x1, y1] = median
 
-
-
     for x1 in range(req_width):
         for y1 in range(req_height):
             dist = sqrt((x1 - r) ** 2 + (y1 - r) ** 2) / r
@@ -408,8 +406,6 @@ def add_dcts(input_image, width, height, blobs, cutter_size=128):
         coord_0 = int(blob.coords[0])
         coord_1 = int(blob.coords[1])
         dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
-        if dist > 0.8 or dist < 0.4:
-            continue
         angle = atan2((coord_1 - r), (coord_0 - r))
         blob_img = input_image.crop(
             (coord_0 - cutter_size, coord_1 - cutter_size, coord_0 + cutter_size, coord_1 + cutter_size))

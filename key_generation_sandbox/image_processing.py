@@ -406,6 +406,10 @@ def add_dcts(input_image, width, height, blobs, cutter_size=128):
         coord_0 = int(blob.coords[0])
         coord_1 = int(blob.coords[1])
         dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
+        if (dist > 0.8 or dist < 0.4):
+            blob.dct_128_8 = None
+            calculated_blobs.append(blob)
+            continue
         angle = atan2((coord_1 - r), (coord_0 - r))
         blob_img = input_image.crop(
             (coord_0 - cutter_size, coord_1 - cutter_size, coord_0 + cutter_size, coord_1 + cutter_size))

@@ -32,6 +32,8 @@ def add_colors(blobs, hru_array):
     colored_blobs = []
     for blob in blobs:
         dct_array = blob.dct_128_8
+        if dct_array is None:
+            continue
         colors = [0, 0, 0]
         sum = 0
         for i in range(4):
@@ -144,7 +146,8 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
                 req_dots.append((x * precision, y * precision))
     else:
         for blob in blobs:
-            req_dots.append(blob.coords)
+            if not (blob.dct_128_8 is None):
+                req_dots.append(blob.coords)
 
     for dot in req_dots:
         coord_0 = int(dot[0])
@@ -234,6 +237,8 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
 
     if not (blobs is None):
         for blob in blobs:
+            if (blob.dct_128_8 is None):
+                continue
             x = int(blob.coords[0])
             y = int(blob.coords[1])
             colors = (128 + int(result_array[x, y][0] / max(scaling1, 0.0001)),

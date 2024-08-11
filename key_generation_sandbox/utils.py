@@ -147,6 +147,16 @@ def to_array(input_image):
         for y1 in range(input_image.height):
             array_image[x1, y1] = image_pixels[x1, y1][0]
     return array_image
+
+def to_array_3d(input_image):
+    array_image = np.zeros((input_image.width, input_image.height, 3))
+    image_pixels = input_image.load()
+
+    for x1 in range(input_image.width):
+        for y1 in range(input_image.height):
+            array_image[x1, y1] = image_pixels[x1, y1]
+    return array_image
+
 def to_image(input_array, width, length):
     image = Image.new("RGB", [width, length])
     draw_result = ImageDraw.Draw(image)
@@ -154,6 +164,15 @@ def to_image(input_array, width, length):
         for y1 in range(length):
             color = int(input_array[x1, y1])
             draw_result.point((x1, y1), (color, color, color))
+    return image
+
+def to_image_3d(input_array, width, length):
+    image = Image.new("RGB", [width, length])
+    draw_result = ImageDraw.Draw(image)
+    for x1 in range(width):
+        for y1 in range(length):
+            color = (int(input_array[x1, y1][0]), int(input_array[x1, y1][1]), int(input_array[x1, y1][2]))
+            draw_result.point((x1, y1), color)
     return image
 
 filename = ''

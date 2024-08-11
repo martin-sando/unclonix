@@ -374,7 +374,7 @@ def find_draw_triangles(image, blobs_obj):
     green_blobs = get_best_color(blobs_obj, 50, 1)
     blue_blobs = get_best_color(blobs_obj, 50, 2)
     colors_blobs = [red_blobs, green_blobs, blue_blobs]
-    triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 2)
+    triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 3)
     copy_image = image.copy()
     triangles_image = draw_triangles(copy_image, triangles, colors_blobs)
     return triangles_image
@@ -438,6 +438,45 @@ def get_dct(image, dct_size):
 
     return dct_image
 
+def create_gaborfilter():
+    # This function is designed to produce a set of GaborFilters
+    # an even distribution of theta values equally distributed amongst pi rad / 180 degree
+    filters = []
+    num_filters = 16
+    ksize = 35  # The local area to evaluate
+    sigma = 4.0  # Larger Values produce more edges
+    lambd = 10.0
+    gamma = 0.5
+    psi = 0  # Offset value - lower generates cleaner results
+    for theta in np.arange(0, np.pi, np.pi / num_filters):  # Theta is the orientation for edge detection
+        kern = cv2.getGaborKernel((ksize, ksize), sigma, theta, lambd, gamma, psi, ktype=cv2.CV_64F)
+        kern /= 1.0 * kern.sum()  # Brightness normalization
+        filters.append(kern)
+    return filters
+
+def apply_filter(image, filters):
+    # This general function is designed to apply filters to our image
+    # First create a numpy array the same size as our input image
+    newimage = np.zeros_like(image)
+    # Starting with a blank image, we loop through the images and apply our Gabor Filter
+    # On each iteration, we take the highest value (super impose), until we have the max value across all filters
+    # The final image is returned
+    depth = -1 # remain depth same as original image
+
+    for kern in filters:  # Loop through the kernels in our GaborFilter
+        image_filter = cv2.filter2D(utils.to_array_3d(image), depth, kern)  #Apply filter to image
+
+        # Using Numpy.maximum to compare our filter and cumulative image, taking the higher value (max)
+        for x in range(req_width):
+            for y in range(req_height):
+                for z in range(3):
+                    newimage[x, y, z] = max(image_filter[x, y, z], newimage[x, y, z])
+        save(utils.to_image_3d(image_filter, req_width, req_height), 'gabor')
+    return utils.to_image_3d(newimage, req_width, req_height)
+def apply_gabor(image):
+    filters = create_gaborfilter()
+    image = apply_filter(image, filters)
+    return image
 def process_photo(input_file, full_research_mode, mask):
     if mask == '':
         mask = 'unlabeled'
@@ -452,7 +491,7 @@ def process_photo(input_file, full_research_mode, mask):
 
     run_experiment(find_draw_triangles, image, blobs_obj)
 
-    run_experiment(generate_some_fields, image, blobs_obj)
+    #run_experiment(generate_some_fields, image, blobs_obj)
 
     if not full_research_mode:
         return

@@ -408,6 +408,8 @@ def add_dcts(input_image, width, height, blobs, cutter_size=128):
         dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
         if (dist > 0.8 or dist < 0.4):
             blob.dct_128_8 = None
+            blob.bmp_128_7 = None
+            blob.bmp_128_15 = None
             calculated_blobs.append(blob)
             continue
         angle = atan2((coord_1 - r), (coord_0 - r))
@@ -426,8 +428,17 @@ def add_dcts(input_image, width, height, blobs, cutter_size=128):
         dct_array = cv2.dct(array_image)
         dct_corner = [(x.tolist())[0:8] for x in dct_array[0:8]]
         blob.dct_128_8 = dct_corner
+        bmp_128_7 = to_array(blob_img.resize((7, 7)))
+        blob.bmp_128_7 = [(x.tolist())[0:7] for x in bmp_128_7[0:7]]
+        bmp_128_15 = to_array(blob_img.resize((15, 15)))
+        blob.bmp_128_15 = [(x.tolist())[0:15] for x in bmp_128_15[0:15]]
         calculated_blobs.append(blob)
     return calculated_blobs
+
+
+
+
+
 def compressing(image, compression_power):
     return image.resize((image.width // compression_power, image.height // compression_power))
 

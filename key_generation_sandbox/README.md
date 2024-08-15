@@ -17,3 +17,11 @@ https://dfrws.org/wp-content/uploads/2024/03/PHASER-Perceptual-hashing-algorithm
 https://github.com/AabyWan/PHASER
 
 https://www.researchgate.net/publication/377567576_Process_of_Fingerprint_Authentication_using_Cancelable_Biohashed_Template
+
+https://link.springer.com/article/10.1007/s11042-015-2496-6
+
+https://link.springer.com/article/10.1007/s11042-020-10135-w
+
+https://link.springer.com/chapter/10.1007/978-981-10-2104-6_17
+
+https://www.researchgate.net/publication/282970195_Perceptual_Hash_Function_based_on_Scale-Invariant_Feature_Transform_and_Singular_Value_Decomposition

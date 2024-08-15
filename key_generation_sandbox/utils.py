@@ -175,6 +175,15 @@ def to_image_3d(input_array, width, length):
             draw_result.point((x1, y1), color)
     return image
 
+def transpose(image):
+    result_image = Image.new("RGB", [image.height, image.width])
+    draw_result = ImageDraw.Draw(result_image)
+    image_pixels = image.load()
+    for x1 in range(image.width):
+        for y1 in range(image.height):
+            color = int(image_pixels[x1, y1][0])
+            draw_result.point((y1, x1), (color, color, color))
+    return result_image
 filename = ''
 
 def set_file_name(name):
@@ -246,3 +255,17 @@ def run_experiment(method, *method_args):
     save(result_image, method_name, save_subfolder)
     set_last_time(method_name)
     return result_image
+
+def draw_blobs(image, blobs_dict):
+    draw_result = ImageDraw.Draw(image)
+    for blob in blobs_dict:
+        x = int(blob.coords[0])
+        y = int(blob.coords[1])
+        colors = blobs_dict[blob]
+        draw_result.point((x, y), colors)
+        for i in range(int(blob.size)):
+            draw_result.point((x, y + i), colors)
+            draw_result.point((x, y - i), colors)
+            draw_result.point((x + i, y), colors)
+            draw_result.point((x - i, y), colors)
+    return image

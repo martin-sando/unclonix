@@ -240,7 +240,8 @@ def brighten_blobs(image, blobs):
                         brightness += exp(-(dist / (2 * size))) * pixels[(x, y)][0]
         brightness = brightness / (2 * size * size)
         blob.brightness = brightness
-        brightened_blobs.append(blob)
+        if (brightness > 180 and brightness * size > 1000):
+            brightened_blobs.append(blob)
     return brightened_blobs
 
 
@@ -451,7 +452,7 @@ def blurring(image, kernel_size):
 def logging_blobs(image, filename):
     image = image.copy()
     morph_image = rgb2gray(image)
-    blobs_log = blob_log(morph_image, min_sigma=req_width / 450, max_sigma=req_width / 190, num_sigma=10, threshold=.03,
+    blobs_log = blob_log(morph_image, min_sigma=req_width / 850, max_sigma=req_width / 190, num_sigma=10, threshold=.07,
                          overlap=0.5)
     blobs_log[:, 2] = (blobs_log[:, 2] * np.sqrt(2)) + 1
     blobs_obj = []
@@ -464,8 +465,11 @@ def logging_blobs(image, filename):
     blobs_obj = brighten_blobs(image, blobs_obj)
     blobs_obj = add_dcts(image, req_width, req_height, blobs_obj)
     text_file = open(os.path.join(bloblist_folder, filename + '.txt'), 'w')
+    color_blobs = {}
     for blob in blobs_obj:
         blob.log(text_file)
+        color_blobs[blob] = blue
+    image = utils.draw_blobs(image, color_blobs)
     return image
 
 def laplacian(image):
@@ -476,6 +480,15 @@ def laplacian(image):
     lap_array = lap(circle_array) * 5
     lap_image = to_image(lap_array, req_width, req_height)
     return lap_image
+
+def dilate(image, power):
+    img_2 = cv2.cvtColor(np.asarray(image), cv2.COLOR_BGR2GRAY)
+    if power > 0:
+        image = cv2.dilate(img_2, None, iterations=power)
+    else:
+        image = cv2.erode(img_2, None, iterations=-power)
+    return utils.transpose(utils.to_image(image, req_width, req_height))
+
 
 def process_photo(input_file, full_research_mode, mask):
     if mask == '':
@@ -504,13 +517,19 @@ def process_photo(input_file, full_research_mode, mask):
 
     image = run_experiment(brightening, image, 15)
 
+    utils.set_save_subfolder('report')
     run_experiment(laplacian, image)
+    utils.set_save_subfolder('')
 
     image = run_experiment(blurring, image, (15, 15))
 
     utils.set_picture_number(utils.image_processing_picture_number_result)
-    image = run_experiment(_processed, image, 8000)
+    image = run_experiment(_processed, image, 10000)
 
+    utils.set_save_subfolder('report')
     run_experiment(laplacian, image)
 
+    utils.set_save_subfolder('')
     run_experiment(logging_blobs, image, filename)
+
+

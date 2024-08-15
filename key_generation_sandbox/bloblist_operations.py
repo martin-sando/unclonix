@@ -236,6 +236,7 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
     scaling3 = total_sum3 / (dct_count * contrast)
 
     if not (blobs is None):
+        color_dict = {}
         for blob in blobs:
             if (blob.dct_128_8 is None):
                 continue
@@ -248,12 +249,9 @@ def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cel
                 colors = (int(result_array[x, y][0]), 0, 0)
             elif not rgb:
                 colors = (128 + int(result_array[x, y][0] / max(scaling1, 0.0001)), 0, 0)
-            draw_result.point((x, y), colors)
-            for i in range(int(blob.size)):
-                draw_result.point((x, y + i), colors)
-                draw_result.point((x, y - i), colors)
-                draw_result.point((x + i, y), colors)
-                draw_result.point((x - i, y), colors)
+            color_dict[blob] = colors
+        field_image = utils.draw_blobs(field_image, color_dict)
+
     else:
         for x in range(width // precision):
             for y in range(height // precision):
@@ -370,11 +368,11 @@ def find_draw_triangles(image, blobs_obj):
     blobs_obj = add_colors(blobs_obj, hru_array)
     circled_pixels = image.load()
 
-    red_blobs = get_best_color(blobs_obj, 50, 0)
-    green_blobs = get_best_color(blobs_obj, 50, 1)
-    blue_blobs = get_best_color(blobs_obj, 50, 2)
+    red_blobs = get_best_color(blobs_obj, 20, 0)
+    green_blobs = get_best_color(blobs_obj, 20, 1)
+    blue_blobs = get_best_color(blobs_obj, 20, 2)
     colors_blobs = [red_blobs, green_blobs, blue_blobs]
-    triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 3)
+    triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 5)
     copy_image = image.copy()
     triangles_image = draw_triangles(copy_image, triangles, colors_blobs)
     return triangles_image

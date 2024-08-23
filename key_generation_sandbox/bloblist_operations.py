@@ -475,9 +475,7 @@ def apply_gabor(image):
     filters = create_gaborfilter()
     image = apply_filter(image, filters)
     return image
-def process_photo(input_file, full_research_mode, mask):
-    if mask == '':
-        mask = 'unlabeled'
+def process_photo(input_file, full_research_mode):
     filename = input_file.split('.')[0]
     utils.set_file_name(filename)
     utils.set_phase_time(2)

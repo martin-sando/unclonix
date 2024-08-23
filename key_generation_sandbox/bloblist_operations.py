@@ -377,22 +377,7 @@ def find_draw_triangles(image, blobs_obj):
     triangles_image = draw_triangles(copy_image, triangles, colors_blobs)
     return triangles_image
 
-def blobs_image(blobs_obj):
-    blob_array = np.zeros((req_width, req_height))
-    for blob in blobs_obj:
-        x = blob.coords[0]
-        y = blob.coords[1]
-        sigma = blob.size
-        brightness = blob.brightness
-        for i in range(-int(sigma), int(sigma) + 1):
-            for j in range(-int(sigma), int(sigma) + 1):
-                if check_inside(x + i, y + j, req_height, req_width):
-                    dist = sqrt((i) ** 2 + (j) ** 2)
-                    if dist <= sigma:
-                        blob_array[int(x + i), int(y + j)] += exp(-((dist / sigma) / 2)) * brightness
 
-    blob_image = to_image(blob_array, req_width, req_height)
-    return blob_image
 
 def generate_some_fields(image, blobs_obj):
     pairs = [(3, 5)]
@@ -435,6 +420,26 @@ def get_dct(image, dct_size):
             draw_result.point((x1, y1), (color, color, color))
 
     return dct_image
+
+def get_distinctiveness(image, blobs_obj):
+    pixels = image.load()
+    blobs_dict = {}
+    for blob in blobs_obj:
+        length = blob.size * sqrt(2)
+        cnt = 0
+        brightness = 0
+        for i in range(-int(length), int(length)):
+            for j in range(-int(length), int(length)):
+                dist = sqrt((i) ** 2 + (j) ** 2)
+                if (length - 1) <= dist <= length:
+                    cnt += 1
+                    brightness += pixels[blob.coords[0] + i, blob.coords[1] + j][0]
+        brightness = brightness / cnt
+        brightness *= 5
+        blobs_dict[blob] = (int(brightness), 0, 256 - int(brightness))
+    image = utils.draw_blobs(image, 'circumference', blobs_obj, blobs_dict)
+    return image
+
 
 def create_gaborfilter():
     # This function is designed to produce a set of GaborFilters
@@ -494,9 +499,11 @@ def process_photo(input_file, full_research_mode, mask):
     if not full_research_mode:
         return
 
-    run_experiment(blobs_image, blobs_obj)
+    run_experiment(utils.draw_blobs, Image.new("RGB", [req_width, req_height]), 'image', blobs_obj)
 
     run_experiment(get_dct, image, 32)
+
+    run_experiment(get_distinctiveness, image, blobs_obj)
 
     phash = imagehash.phash(image)
     hash_as_str = str(phash)

@@ -1,7 +1,7 @@
 import os
 import cv2
 import random
-from math import atan2, pi
+from math import atan2, pi, sqrt, exp
 import numpy as np
 from PIL import Image, ImageDraw
 from Blob import Blob
@@ -256,16 +256,44 @@ def run_experiment(method, *method_args):
     set_last_time(method_name)
     return result_image
 
-def draw_blobs(image, blobs_dict):
+def draw_blobs(image, mode, blobs_list, blobs_dict=None):
     draw_result = ImageDraw.Draw(image)
-    for blob in blobs_dict:
+    for blob in blobs_list:
         x = int(blob.coords[0])
         y = int(blob.coords[1])
-        colors = blobs_dict[blob]
-        draw_result.point((x, y), colors)
-        for i in range(int(blob.size)):
-            draw_result.point((x, y + i), colors)
-            draw_result.point((x, y - i), colors)
-            draw_result.point((x + i, y), colors)
-            draw_result.point((x - i, y), colors)
+        sigma = blob.size
+        brightness = blob.brightness
+        colors = blue
+        if (blobs_dict != None):
+            colors = blobs_dict[blob]
+
+        if (mode == 'plus'):
+            draw_result.point((x, y), colors)
+            for i in range(int(blob.size)):
+                draw_result.point((x, y + i), colors)
+                draw_result.point((x, y - i), colors)
+                draw_result.point((x + i, y), colors)
+                draw_result.point((x - i, y), colors)
+        if (mode == 'image'):
+            for i in range(-int(sigma), int(sigma) + 1):
+                for j in range(-int(sigma), int(sigma) + 1):
+                    if check_inside(x + i, y + j, req_height, req_width):
+                        dist = sqrt((i) ** 2 + (j) ** 2)
+                        if dist <= sigma:
+                            color = int(exp(-((dist / sigma) / 2)) * brightness)
+                            draw_result.point((x + i, y + j), (color, color, color))
+        if (mode == 'circle'):
+            for i in range(-int(sigma), int(sigma) + 1):
+                for j in range(-int(sigma), int(sigma) + 1):
+                    if check_inside(x + i, y + j, req_height, req_width):
+                        dist = sqrt((i) ** 2 + (j) ** 2)
+                        if dist <= sigma:
+                            draw_result.point((x + i, y + j), colors)
+        if (mode == 'circumference'):
+            for i in range(-int(sigma), int(sigma) + 1):
+                for j in range(-int(sigma), int(sigma) + 1):
+                    if check_inside(x + i, y + j, req_height, req_width):
+                        dist = sqrt((i) ** 2 + (j) ** 2)
+                        if (sigma - 1) <= dist <= sigma:
+                            draw_result.point((x + i, y + j), colors)
     return image

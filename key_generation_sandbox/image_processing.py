@@ -219,9 +219,10 @@ def _processed(image, power):
                 continue
             total_brightness = 0
             for (dx, dy) in deltas:
-                total_brightness += pixels[x1 + dx, y1 + dy][0] ** 2
-            if (total_brightness < power):
-                draw_result.point((x1, y1), black)
+                total_brightness += pixels[x1 + dx, y1 + dy][0]
+            total_brightness /= len(deltas)
+            color = int(255 * max(total_brightness - power, 0) / (255 - power))
+            draw_result.point((x1, y1), (color, color, color))
     return image
 
 def brighten_blobs(image, blobs):
@@ -240,8 +241,8 @@ def brighten_blobs(image, blobs):
                         brightness += exp(-(dist / (2 * size))) * pixels[(x, y)][0]
         brightness = brightness / (2 * size * size)
         blob.brightness = brightness
-        if (brightness > 180 and brightness * size > 1000):
-            brightened_blobs.append(blob)
+        #if (brightness > 180 and brightness * size > 1000):
+        brightened_blobs.append(blob)
     return brightened_blobs
 
 
@@ -452,7 +453,7 @@ def blurring(image, kernel_size):
 def logging_blobs(image, filename):
     image = image.copy()
     morph_image = rgb2gray(image)
-    blobs_log = blob_log(morph_image, min_sigma=req_width / 850, max_sigma=req_width / 190, num_sigma=10, threshold=.07,
+    blobs_log = blob_log(morph_image, min_sigma=req_width / 1250, max_sigma=req_width / 290, num_sigma=10, threshold=.03,
                          overlap=0.5)
     blobs_log[:, 2] = (blobs_log[:, 2] * np.sqrt(2)) + 1
     blobs_obj = []
@@ -524,7 +525,8 @@ def process_photo(input_file, full_research_mode, mask):
     image = run_experiment(blurring, image, (15, 15))
 
     utils.set_picture_number(utils.image_processing_picture_number_result)
-    image = run_experiment(_processed, image, 10000)
+    #image = run_experiment(dilate, image, -2)
+    image = run_experiment(_processed, image, 12)
 
     utils.set_save_subfolder('report')
     run_experiment(laplacian, image)

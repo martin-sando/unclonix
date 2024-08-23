@@ -491,9 +491,7 @@ def dilate(image, power):
     return utils.transpose(utils.to_image(image, req_width, req_height))
 
 
-def process_photo(input_file, full_research_mode, mask):
-    if mask == '':
-        mask = 'unlabeled'
+def process_photo(input_file, full_research_mode):
     filename = input_file.split('.')[0]
     utils.set_file_name(filename)
     utils.set_picture_number(0)

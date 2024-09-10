@@ -176,8 +176,8 @@ def trimming(image, skip_factor, precision):
                             (y1 % precision) / precision)
                     median_field[x1, y1] = comp_1 + comp_2 + comp_3 + comp_4
                 color = int(abs(saved_pixels[x1, y1][0] - median_field[x1, y1][0]) +
-                         abs(saved_pixels[x1, y1][1] - median_field[x1, y1][1]) +
-                         abs(saved_pixels[x1, y1][2] - median_field[x1, y1][2])) // 3
+                            abs(saved_pixels[x1, y1][1] - median_field[x1, y1][1]) +
+                            abs(saved_pixels[x1, y1][2] - median_field[x1, y1][2])) // 3
                 draw_result.point((x1, y1), (color, color, color))
     return new_circled_image
 
@@ -205,10 +205,10 @@ def _processed(image, power):
     deltas = []
     for dx in range(-2, 3):
         for dy in range(-2, 3):
-                dist = dx**2 + dy**2
-                if dist > 9:
-                    continue
-                deltas.append((dx, dy))
+            dist = dx**2 + dy**2
+            if dist > 9:
+                continue
+            deltas.append((dx, dy))
     for x1 in range(image.width):
         for y1 in range(image.height):
             if x1 < 2 or x1 > image.width - 3:
@@ -431,14 +431,23 @@ def add_dcts(input_image, width, height, blobs, cutter_size=128):
         dct_corner = [(x.tolist())[0:8] for x in dct_array[0:8]]
         blob.dct_128_8 = dct_corner
         bmp_128_7 = to_array(blob_img.resize((7, 7)))
-        blob.bmp_128_7 = [(x.tolist())[0:7] for x in bmp_128_7[0:7]]
+        bmp_128_7_t = []
+        for i in range(7):
+            lst = []
+            for j in range(7):
+                lst.append(bmp_128_7[j, i])
+            bmp_128_7_t.append(lst)
         bmp_128_15 = to_array(blob_img.resize((15, 15)))
-        blob.bmp_128_15 = [(x.tolist())[0:15] for x in bmp_128_15[0:15]]
+        blob.bmp_128_7 = bmp_128_7_t
+        bmp_128_15_t = []
+        for i in range(15):
+            lst = []
+            for j in range(15):
+                lst.append(bmp_128_15[j, i])
+            bmp_128_15_t.append(lst)
+        blob.bmp_128_15 = bmp_128_15_t
         calculated_blobs.append(blob)
     return calculated_blobs
-
-
-
 
 
 def compressing(image, compression_power):
@@ -450,10 +459,30 @@ def blurring(image, kernel_size):
     image = to_image(circled_array, req_width, req_height)
     return image
 
+def binarying(image, threshold1, threshold2):
+    draw_result = ImageDraw.Draw(image)
+    pixels = image.load()
+    for x1 in range(req_width):
+        for y1 in range(req_height):
+            if pixels[x1, y1][0] < threshold1:
+                draw_result.point((x1, y1), black)
+            else:
+                t = False
+                for dx in (-5, 5):
+                    for dy in (-5, 5):
+                        if pixels[x1+dx, y1+dy][0] >= threshold2:
+                            t = True
+                            break
+                    if t:
+                        break
+                if not t:
+                    draw_result.point((x1, y1), black)
+    return image
+
 def logging_blobs(image, filename):
     image = image.copy()
     morph_image = rgb2gray(image)
-    blobs_log = blob_log(morph_image, min_sigma=req_width / 1250, max_sigma=req_width / 290, num_sigma=10, threshold=.03,
+    blobs_log = blob_log(morph_image, min_sigma=req_width / 750, max_sigma=req_width / 120, num_sigma=10, threshold=.35,
                          overlap=0.5)
     blobs_log[:, 2] = (blobs_log[:, 2] * np.sqrt(2)) + 1
     blobs_obj = []
@@ -522,7 +551,10 @@ def process_photo(input_file, full_research_mode):
 
     image = run_experiment(blurring, image, (15, 15))
 
+    image = run_experiment(binarying, image, 70, 130)
+
     utils.set_picture_number(utils.image_processing_picture_number_result)
+
     #image = run_experiment(dilate, image, -2)
     image = run_experiment(_processed, image, 12)
 
@@ -531,5 +563,3 @@ def process_photo(input_file, full_research_mode):
 
     utils.set_save_subfolder('')
     run_experiment(logging_blobs, image, filename)
-
-

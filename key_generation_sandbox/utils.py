@@ -33,7 +33,7 @@ for i in range(20):
     hru = [random.gauss(mu=0.0, sigma=1.0) for _ in range(64)]
     hru_array.append(hru)
 
-def get_blob_info(image, coords, blobs, mask_num, filename, hru, bound_1, bound_2, cutter_size=128):
+def get_blob_info(image, coords, blobs, mask_num, filename, hru = hru_array[0], bound_1 = 0, bound_2 = 7, cutter_size=128):
     label_folder = report_folder + "/" + str(mask_num)
     os.makedirs(label_folder, exist_ok=True)
     text_file = open(os.path.join(label_folder, filename + '.txt'), 'w')
@@ -89,7 +89,7 @@ def get_blob_info(image, coords, blobs, mask_num, filename, hru, bound_1, bound_
     rot_image = blob_img.rotate((angle * (180 / pi)))
 
     blob_img = rot_image.crop(
-        (int(cutter_size / 2) + 1, int(cutter_size / 2) + 1, int(cutter_size * (3 / 2)) + 1, int(cutter_size * (3 / 2)) + 1))
+        (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
     log_picture(blob_img, "around")
     blob_pixels = blob_img.load()
     array_image = np.zeros((cutter_size, cutter_size))
@@ -108,6 +108,8 @@ def get_blob_info(image, coords, blobs, mask_num, filename, hru, bound_1, bound_
             dct_hru[i - bound_1, j - bound_1] += hru[(i - bound_1) * (bound_2 - bound_1 + 1) + (j - bound_1)] * (
                 dct_array[i, j])
     log_matrix(dct_hru)
+    log("bmp_128_7 is ")
+    log_matrix(closest_blob.bmp_128_7)
 
 def get_blob_list(filename):
     text_read = open(filename)
@@ -214,7 +216,7 @@ def save_report(image, tag):
 result_tag = '_processed'
 
 def get_result_name():
-    return os.path.join(output_folder, filename + "_" + "p" + str(image_processing_picture_number_result).zfill(2) + "_processed" + ".png")
+    return os.path.join(output_folder, filename + "_" + "p" + str(image_processing_picture_number_result).zfill(2) + result_tag + ".png")
 
 start_time = None
 phase_time = None
@@ -281,7 +283,8 @@ def draw_blobs(image, mode, blobs_list, blobs_dict=None):
                         dist = sqrt((i) ** 2 + (j) ** 2)
                         if dist <= sigma:
                             color = int(exp(-((dist / sigma) / 2)) * brightness)
-                            draw_result.point((x + i, y + j), (color, color, color))
+                            #draw_result.point((x + i, y + j), (color, color, color))
+                            draw_result.point((x + i, y + j), white)
         if (mode == 'circle'):
             for i in range(-int(sigma), int(sigma) + 1):
                 for j in range(-int(sigma), int(sigma) + 1):

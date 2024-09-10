@@ -16,43 +16,59 @@ hru_array = utils.hru_array
 save, save_report = utils.save, utils.save_report
 run_experiment = utils.run_experiment
 
-color_dict = dict()
 def get_best_color(blobs, amount, color_num):
+    color_dict = add_colors(blobs, hru_array)
     colors = []
     for blob in blobs:
+        if blob.dct_128_8 == None:
+            continue
         colors.append(color_dict[blob][color_num])
     colors.sort()
     best_blobs = []
     for blob in blobs:
-        if (color_dict[blob][color_num] >= colors[len(blobs) - amount]):
+        if blob.dct_128_8 == None:
+            continue
+        if (color_dict[blob][color_num] >= colors[max(len(colors) - amount, 0)]):
             best_blobs.append(blob)
     return best_blobs
 
 def add_colors(blobs, hru_array):
-    colored_blobs = []
+    color_dict = dict()
     for blob in blobs:
-        dct_array = blob.dct_128_8
+        dct_array = blob.bmp_128_7
         if dct_array is None:
             continue
         colors = [0, 0, 0]
         sum = 0
-        for i in range(4):
-            for j in range(4):
-                sum += hru_array[0][i * 8 + j] * dct_array[i][j]
+        for i in range(7):
+            for j in range(7):
+                sum += hru_array[0][i * 7 + j] * dct_array[i][j]
         colors[0] = sum
         sum = 0
-        for i in range(4):
-            for j in range(4, 8):
+        for i in range(7):
+            for j in range(7):
                 sum += hru_array[1][i * 8 + j] * dct_array[i][j]
         colors[1] = sum
         sum = 0
-        for i in range(4, 8):
-            for j in range(4):
+        for i in range(7):
+            for j in range(7):
                 sum += hru_array[2][i * 8 + j] * dct_array[i][j]
         colors[2] = sum
         color_dict[blob] = colors
-        colored_blobs.append(blob)
-    return colored_blobs
+    return color_dict
+
+def color_picture(blobs):
+    color_d = add_colors(blobs, hru_array)
+    result_image = Image.new("RGB", [128, 128])
+    draw_result = ImageDraw.Draw(result_image)
+    for blob in blobs:
+        if blob.dct_128_8 is None:
+            continue
+        coord_1 = int(color_d[blob][0] / 30 + 64)
+        coord_2 = int(color_d[blob][1] / 30 + 64)
+        draw_result.point((coord_1, coord_2), white)
+    return result_image
+
 def find_triangles(r, best_blobs_color, req_angles, threshold):
     triangles = []
     for blob1 in best_blobs_color[0]:
@@ -365,8 +381,7 @@ def get_angle_image(input_image, width, height, precision, mode, cutter_size=64)
 
 
 def find_draw_triangles(image, blobs_obj):
-    blobs_obj = add_colors(blobs_obj, hru_array)
-    circled_pixels = image.load()
+    add_colors(blobs_obj, hru_array)
 
     red_blobs = get_best_color(blobs_obj, 20, 0)
     green_blobs = get_best_color(blobs_obj, 20, 1)
@@ -425,17 +440,23 @@ def get_distinctiveness(image, blobs_obj):
     pixels = image.load()
     blobs_dict = {}
     for blob in blobs_obj:
-        length = blob.size * sqrt(2)
+        length = blob.size * 1.3
+        length2 = blob.size * 0.8
         cnt = 0
         brightness = 0
+        brightness2 = 0
         for i in range(-int(length), int(length)):
             for j in range(-int(length), int(length)):
                 dist = sqrt((i) ** 2 + (j) ** 2)
-                if (length - 1) <= dist <= length:
+                if (length - 1) <= dist <= (length):
                     cnt += 1
-                    brightness += pixels[blob.coords[0] + i, blob.coords[1] + j][0]
-        brightness = brightness / cnt
-        brightness *= 5
+                    brightness += max(pixels[blob.coords[0] + i, blob.coords[1] + j][0] - 20, 0)
+
+                if (length2 - 1) <= dist <= (length2):
+                    cnt += 1
+                    brightness2 += max((170 - pixels[blob.coords[0] + i, blob.coords[1] + j][0]), 0)
+        brightness *= (brightness2 + 300)
+        brightness /= 10000
         blobs_dict[blob] = (int(brightness), 0, 256 - int(brightness))
     image = utils.draw_blobs(image, 'circumference', blobs_obj, blobs_dict)
     return image
@@ -489,6 +510,9 @@ def process_photo(input_file, full_research_mode):
     print('Processing (phase 2) ' + filename)
     blobs_obj = utils.get_blob_list(os.path.join(bloblist_folder, filename + '.txt'))
     image = Image.open(utils.get_result_name())
+
+
+    run_experiment(color_picture, blobs_obj)
 
     run_experiment(find_draw_triangles, image, blobs_obj)
 

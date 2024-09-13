@@ -154,6 +154,9 @@ def get_field_image(measure_field, input_image, precision, contrast=128):
     for dot in req_dots:
         coord_0 = int(dot[0])
         coord_1 = int(dot[1])
+        dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
+        if dist > 0.8:
+            continue
         result_array[coord_0, coord_1] = measure_field(input_image, (coord_0, coord_1))
         total_brightness += abs(result_array[coord_0, coord_1][0]) + abs(result_array[coord_0, coord_1][1]) + abs(result_array[coord_0, coord_1][2])
 
@@ -286,7 +289,7 @@ def generate_some_fields(image, blobs_obj):
             for j in range(7):
                 lst.append(bmp_128_7[j, i])
             bmp_128_7_t.append(lst)
-        color = (bmp_128_7_t[0][0], bmp_128_7_t[0][0], bmp_128_7_t[0][0])
+        color = (bmp_128_7_t[0][0], bmp_128_7_t[6][0], bmp_128_7_t[0][6])
         return color
 
     field_image = get_field_image(example_measure, image, precision=10, contrast=70)

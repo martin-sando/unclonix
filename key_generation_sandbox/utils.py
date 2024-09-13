@@ -300,3 +300,14 @@ def draw_blobs(image, mode, blobs_list, blobs_dict=None):
                         if (sigma - 1) <= dist <= sigma:
                             draw_result.point((x + i, y + j), colors)
     return image
+
+def get_rotated_surroundings(image, coords, cutter_size=128):
+    coord_0 = coords[0]
+    coord_1 = coords[1]
+    angle = atan2((coord_1 - r), (coord_0 - r))
+    blob_img = image.crop(
+        (coord_0 - cutter_size, coord_1 - cutter_size, coord_0 + cutter_size, coord_1 + cutter_size))
+    rot_image = blob_img.rotate((angle * (180 / pi)))
+    surr_img = rot_image.crop(
+        (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
+    return surr_img

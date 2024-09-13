@@ -17,7 +17,7 @@ save, save_report = utils.save, utils.save_report
 run_experiment = utils.run_experiment
 
 def get_best_color(blobs, amount, color_num):
-    color_dict = add_colors(blobs, hru_array)
+    color_dict = add_colors(blobs)
     colors = []
     for blob in blobs:
         if blob.dct_128_8 == None:
@@ -32,7 +32,7 @@ def get_best_color(blobs, amount, color_num):
             best_blobs.append(blob)
     return best_blobs
 
-def add_colors(blobs, hru_array):
+def add_colors(blobs):
     color_dict = dict()
     for blob in blobs:
         dct_array = blob.bmp_128_7
@@ -58,7 +58,7 @@ def add_colors(blobs, hru_array):
     return color_dict
 
 def color_picture(blobs):
-    color_d = add_colors(blobs, hru_array)
+    color_d = add_colors(blobs)
     result_image = Image.new("RGB", [128, 128])
     draw_result = ImageDraw.Draw(result_image)
     for blob in blobs:
@@ -139,170 +139,52 @@ def draw_triangles(image, triangles, best_blobs_color):
                 draw.point((coords[0], coords[1] + i), color)
     return image
 
-def get_field_image(input_image, width, height, precision, hru, low_b, up_b, cell, scale=True, contrast=128,
-                    cutter_size=128, blobs=None, rgb=False, tournament=False):
-    r = width // 2
-    result_array = np.zeros((width, height, 3))
+def get_field_image(measure_field, input_image, precision, contrast=128):
+    r = req_width // 2
+    result_array = np.zeros((req_width, req_height, 3))
     dct_sum = np.zeros((128, 128))
     dct_sum[0, 0] = 1
-    total_sum1 = 0
-    total_sum2 = 0
-    total_sum3 = 0
     req_dots = []
-    dct_fields = []
-    dct_count = 0
-    i_range = range(low_b, up_b + 1)
-    j_range = range(low_b, up_b + 1)
-    if cell:
-        i_range = [low_b]
-        j_range = [up_b]
-    if blobs is None:
-        for x in range(width // precision):
-            for y in range(height // precision):
-                req_dots.append((x * precision, y * precision))
-    else:
-        for blob in blobs:
-            if not (blob.dct_128_8 is None):
-                req_dots.append(blob.coords)
+    for x in range(req_width // precision):
+        for y in range(req_height // precision):
+            req_dots.append((x * precision, y * precision))
+
+    total_brightness = 0
 
     for dot in req_dots:
         coord_0 = int(dot[0])
         coord_1 = int(dot[1])
-        dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
-        if dist > 0.8:
-            dct_fields.append([[]])
-            continue
-        angle = atan2((coord_1 - r), (coord_0 - r))
-        blob_img = input_image.crop(
-            (coord_0 - cutter_size, coord_1 - cutter_size, coord_0 + cutter_size + 1, coord_1 + cutter_size + 1))
-        rot_image = blob_img.rotate((angle * (180 / pi)))
-        blob_img = rot_image.crop(
-            (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
-        blob_pixels = blob_img.load()
+        result_array[coord_0, coord_1] = measure_field(input_image, (coord_0, coord_1))
+        total_brightness += abs(result_array[coord_0, coord_1][0]) + abs(result_array[coord_0, coord_1][1]) + abs(result_array[coord_0, coord_1][2])
 
-        array_image = np.zeros((cutter_size, cutter_size))
-        for x1 in range(cutter_size):
-            for y1 in range(cutter_size):
-                array_image[x1, y1] = blob_pixels[x1, y1][0] + 0.0
+    scaling = total_brightness / (len(req_dots) * contrast)
 
-        dct_array = cv2.dct(array_image)
-        dct_array[0][0] = 0
-        for i in i_range:
-            for j in j_range:
-                if scale:
-                    dct_sum[i, j] = dct_sum[i, j] + abs(dct_array[i, j])
-                else:
-                    dct_sum[i, j] = 1
-        dct_count = dct_count + 1
-        dct_fields.append(dct_array)
-    dct_sum = dct_sum / dct_count
-
-    for i in range(len(req_dots)):
-        coord_0 = int(req_dots[i][0])
-        coord_1 = int(req_dots[i][1])
-        dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
-        if dist > 0.8:
-            continue
-        dct_array = dct_fields[i]
-        score = [0, 0, 0]
-        s1 = 0
-        s2 = 0
-        s3 = 0
-        s4 = 0
-        if not tournament:
-            for i in i_range:
-                for j in j_range:
-                    s1 += hru[0][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
-                            dct_array[i, j] / sqrt(dct_sum[i, j]))
-                    s2 += hru[1][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
-                            dct_array[i, j] / sqrt(dct_sum[i, j]))
-                    s3 += hru[2][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
-                            dct_array[i, j] / sqrt(dct_sum[i, j]))
-                    s4 += hru[3][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
-                            dct_array[i, j] / sqrt(dct_sum[i, j]))
-                    if rgb:
-                        score[1] += hru[1][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
-                                dct_array[i, j] / sqrt(dct_sum[i, j]))
-                        score[2] += hru[2][(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
-                                dct_array[i, j] / sqrt(dct_sum[i, j]))
-            score[0] = min(s1, s2, s3, s4)
-            total_sum1 += abs(score[0])
-            total_sum2 += abs(score[1])
-            total_sum3 += abs(score[2])
-        else:
-            for hru_elem in hru:
-                sum = 0
-                for i in i_range:
-                    for j in j_range:
-                        sum += hru_elem[(i - low_b) * (up_b - low_b + 1) + (j - low_b)] * (
-                                dct_array[i, j] / dct_sum[i, j])
-                if sum > 0:
-                    score[0] = score[0] + 30
-                else:
-                    break
-            total_sum1 += score[0]
-        result_array[coord_0, coord_1, 0] = score[0]
-        result_array[coord_0, coord_1, 1] = score[1]
-        result_array[coord_0, coord_1, 2] = score[2]
-    field_image = input_image.copy()
+    field_image = Image.new("RGB", [req_width, req_height])
     draw_result = ImageDraw.Draw(field_image)
-
-    scaling1 = total_sum1 / (dct_count * contrast)
-    scaling2 = total_sum2 / (dct_count * contrast)
-    scaling3 = total_sum3 / (dct_count * contrast)
-
-    if not (blobs is None):
-        color_dict = {}
-        for blob in blobs:
-            if (blob.dct_128_8 is None):
-                continue
-            x = int(blob.coords[0])
-            y = int(blob.coords[1])
-            colors = (128 + int(result_array[x, y][0] / max(scaling1, 0.0001)),
-                      128 + int(result_array[x, y][1] / max(scaling2, 0.0001)),
-                      128 + int(result_array[x, y][2] / max(scaling3, 0.0001)))
-            if (tournament):
-                colors = (int(result_array[x, y][0]), 0, 0)
-            elif not rgb:
-                colors = (128 + int(result_array[x, y][0] / max(scaling1, 0.0001)), 0, 0)
-            color_dict[blob] = colors
-        field_image = utils.draw_blobs(field_image, color_dict)
-
-    else:
-        for x in range(width // precision):
-            for y in range(height // precision):
-                for x1 in range(precision):
-                    for y1 in range(precision):
-                        if x1 + y1 == 0:
-                            continue
-                        coord_0 = x * precision + x1
-                        coord_1 = y * precision + y1
-                        dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
-                        if dist > 0.8:
-                            continue
-                        comp_1 = result_array[x * precision, y * precision] * (1 - x1 / precision) * (
-                                1 - y1 / precision)
-                        comp_2 = result_array[x * precision, y * precision + precision] * (1 - x1 / precision) * (
-                                y1 / precision)
-                        comp_3 = result_array[x * precision + precision, y * precision] * (x1 / precision) * (
-                                1 - y1 / precision)
-                        comp_4 = result_array[x * precision + precision, y * precision + precision] * (
-                                x1 / precision) * (
-                                         y1 / precision)
-                        result_array[coord_0, coord_1] = comp_1 + comp_2 + comp_3 + comp_4
-        for x in range(width):
-            for y in range(height):
-                dist = sqrt((x - r) ** 2 + (y - r) ** 2) / r
-                color = (0, 0, 0)
-                if dist < 0.8:
-                    color = (int(128 + result_array[x, y][0] // max(scaling1, 0.0001)),
-                             int(128 + result_array[x, y][1] // max(scaling2, 0.0001)),
-                             int(128 + result_array[x, y][2] // max(scaling3, 0.0001)))
-                    if (tournament):
-                        color = (int(result_array[x, y][0]), 0, 0)
-                    elif not rgb:
-                        color = (128 + int(result_array[x, y][0] / max(scaling1, 0.0001)), 0, 0)
-                draw_result.point((x, y), color)
+    for x in range(req_width // precision):
+        for y in range(req_height // precision):
+            for x1 in range(precision):
+                for y1 in range(precision):
+                    if x1 + y1 == 0:
+                        continue
+                    coord_0 = x * precision + x1
+                    coord_1 = y * precision + y1
+                    dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
+                    if dist > 0.8:
+                        continue
+                    comp_1 = result_array[x * precision, y * precision] * (1 - x1 / precision) * (
+                            1 - y1 / precision)
+                    comp_2 = result_array[x * precision, y * precision + precision] * (1 - x1 / precision) * (
+                            y1 / precision)
+                    comp_3 = result_array[x * precision + precision, y * precision] * (x1 / precision) * (
+                            1 - y1 / precision)
+                    comp_4 = result_array[x * precision + precision, y * precision + precision] * (
+                            x1 / precision) * (y1 / precision)
+                    result_array[coord_0, coord_1] = comp_1 + comp_2 + comp_3 + comp_4
+    for x in range(req_width):
+        for y in range(req_height):
+            color = (int(128 + result_array[x, y][0] / scaling), int(128 + result_array[x, y][1] / scaling), int(128 + result_array[x, y][2] / scaling))
+            draw_result.point((x, y), color)
 
     return field_image
 
@@ -381,7 +263,7 @@ def get_angle_image(input_image, width, height, precision, mode, cutter_size=64)
 
 
 def find_draw_triangles(image, blobs_obj):
-    add_colors(blobs_obj, hru_array)
+    add_colors(blobs_obj)
 
     red_blobs = get_best_color(blobs_obj, 20, 0)
     green_blobs = get_best_color(blobs_obj, 20, 1)
@@ -395,28 +277,20 @@ def find_draw_triangles(image, blobs_obj):
 
 
 def generate_some_fields(image, blobs_obj):
-    pairs = [(3, 5)]
-    dots = [(6, 2)]
-    for pair in pairs:
-        field_image = get_field_image(image, req_width, req_height, precision=20, contrast=70,
-                                      hru=hru_array, low_b=pair[0], up_b=pair[1], cell=False, scale=True, blobs=None,
-                                      rgb=True, tournament=False)
-        save_report(field_image, 'field_image_array' + str(pair[0]) + '..' + str(pair[1]))
+    def example_measure(image, coords):
+        blob_img = utils.get_rotated_surroundings(image, coords)
+        bmp_128_7 = to_array(blob_img.resize((7, 7)))
+        bmp_128_7_t = []
+        for i in range(7):
+            lst = []
+            for j in range(7):
+                lst.append(bmp_128_7[j, i])
+            bmp_128_7_t.append(lst)
+        color = (bmp_128_7_t[0][0], bmp_128_7_t[0][0], bmp_128_7_t[0][0])
+        return color
 
-    for dot in dots:
-        field_image = get_field_image(image, req_width, req_height, precision=20, contrast=70,
-                                      hru=hru_array, low_b=dot[0], up_b=dot[1], cell=True, scale=True, blobs=None,
-                                      rgb=True, tournament=False)
-        save_report(field_image, 'field_image_dot' + str(dot[0]) + '.' + str(dot[1]))
-
-    field_image = get_field_image(image, req_width, req_height, 20, hru_array, 0, 3, contrast=70, cell=False, scale=True,
-                                  blobs=blobs_obj, rgb=False, tournament=False)
-    save_report(field_image, 'field_image_blob' + '0' + '..' + '5')
-    field_image = get_field_image(image, req_width, req_height, 20, hru_array, 0, 3, contrast=70, cell=False, scale=True,
-                                  blobs=None, rgb=False, tournament=False)
-    save_report(field_image, 'field_image_array' + '0' + '..' + '5')
-    utils.set_last_time('drawing various fields')
-    return image
+    field_image = get_field_image(example_measure, image, precision=10, contrast=70)
+    return field_image
 
 def get_dct(image, dct_size):
     pixels = image.load()
@@ -516,7 +390,7 @@ def process_photo(input_file, full_research_mode):
 
     run_experiment(find_draw_triangles, image, blobs_obj)
 
-    #run_experiment(generate_some_fields, image, blobs_obj)
+    run_experiment(generate_some_fields, image, blobs_obj)
 
     if not full_research_mode:
         return

@@ -405,21 +405,14 @@ def add_dcts(input_image, width, height, blobs, cutter_size=128):
     calculated_blobs = []
     r = width // 2
     for blob in blobs:
-        coord_0 = int(blob.coords[0])
-        coord_1 = int(blob.coords[1])
-        dist = sqrt((coord_0 - r) ** 2 + (coord_1 - r) ** 2) / r
+        dist = sqrt((blob.coords[0] - r) ** 2 + (blob.coords[1] - r) ** 2) / r
         if (dist > 0.8 or dist < 0.4):
             blob.dct_128_8 = None
             blob.bmp_128_7 = None
             blob.bmp_128_15 = None
             calculated_blobs.append(blob)
             continue
-        angle = atan2((coord_1 - r), (coord_0 - r))
-        blob_img = input_image.crop(
-            (coord_0 - cutter_size, coord_1 - cutter_size, coord_0 + cutter_size, coord_1 + cutter_size))
-        rot_image = blob_img.rotate((angle * (180 / pi)))
-        blob_img = rot_image.crop(
-            (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
+        blob_img = utils.get_rotated_surroundings(input_image, blob.coords, cutter_size)
         blob_pixels = blob_img.load()
 
         array_image = np.zeros((cutter_size, cutter_size))

@@ -406,12 +406,6 @@ def add_dcts(input_image, width, height, blobs, cutter_size=128):
     r = width // 2
     for blob in blobs:
         dist = sqrt((blob.coords[0] - r) ** 2 + (blob.coords[1] - r) ** 2) / r
-        if (dist > 0.8 or dist < 0.4):
-            blob.dct_128_8 = None
-            blob.bmp_128_7 = None
-            blob.bmp_128_15 = None
-            calculated_blobs.append(blob)
-            continue
         blob_img = utils.get_rotated_surroundings(input_image, blob.coords, cutter_size)
         blob_pixels = blob_img.load()
 

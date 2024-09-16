@@ -15,6 +15,7 @@ to_array, to_image = utils.to_array, utils.to_image
 hru_array = utils.hru_array
 save, save_report = utils.save, utils.save_report
 run_experiment = utils.run_experiment
+r = utils.r
 
 def get_best_color(blobs, amount, color_num):
     color_dict = add_colors(blobs)
@@ -28,7 +29,7 @@ def get_best_color(blobs, amount, color_num):
     for blob in blobs:
         if blob.dct_128_8 == None:
             continue
-        if (color_dict[blob][color_num] >= colors[max(len(colors) - amount, 0)]):
+        if (color_dict[blob][color_num] >= amount):
             best_blobs.append(blob)
     return best_blobs
 
@@ -43,17 +44,17 @@ def add_colors(blobs):
         for i in range(7):
             for j in range(7):
                 sum += hru_array[0][i * 7 + j] * dct_array[i][j]
-        colors[0] = sum
+        colors[0] = dct_array[0][0]
         sum = 0
         for i in range(7):
             for j in range(7):
                 sum += hru_array[1][i * 8 + j] * dct_array[i][j]
-        colors[1] = sum
+        colors[1] = dct_array[6][0]
         sum = 0
         for i in range(7):
             for j in range(7):
                 sum += hru_array[2][i * 8 + j] * dct_array[i][j]
-        colors[2] = sum
+        colors[2] = dct_array[0][6]
         color_dict[blob] = colors
     return color_dict
 
@@ -69,8 +70,11 @@ def color_picture(blobs):
         draw_result.point((coord_1, coord_2), white)
     return result_image
 
+
+best_triangle = None
 def find_triangles(r, best_blobs_color, req_angles, threshold):
-    triangles = []
+    triangle = (0, 0, 0)
+    best_score = 1000
     for blob1 in best_blobs_color[0]:
         for blob2 in best_blobs_color[1]:
             if blob1.same_dot(blob2):
@@ -110,8 +114,16 @@ def find_triangles(r, best_blobs_color, req_angles, threshold):
                     angles.sort()
                     cur_score = abs(angles[0] - req_angles[0]) + abs(angles[1] - req_angles[1]) + abs(
                         angles[2] - req_angles[2])
-                    if cur_score < threshold:
-                        triangles.append((blob1, blob2, blob3))
+                    cur_score += abs(dist_12 - 500) / 50 + abs(dist_23 - 500) / 50 + abs(dist_13 - 500) / 50
+                    coord_centre = ((coord1[0] + coord2[0] + coord3[0]) / 3, (coord1[1] + coord2[1] + coord3[1]) / 3)
+                    cur_score += sqrt(((coord_centre[0]) / 50) ** 2 + ((coord_centre[1]) / 50) ** 2)
+                    if cur_score < best_score:
+                        triangle= (blob1, blob2, blob3)
+                        best_score = cur_score
+    triangles = [triangle]
+    global best_triangle
+    best_triangle = triangle
+    print(best_score)
     return triangles
 
 def draw_triangles(image, triangles, best_blobs_color):
@@ -268,11 +280,11 @@ def get_angle_image(input_image, width, height, precision, mode, cutter_size=64)
 def find_draw_triangles(image, blobs_obj):
     add_colors(blobs_obj)
 
-    red_blobs = get_best_color(blobs_obj, 20, 0)
-    green_blobs = get_best_color(blobs_obj, 20, 1)
-    blue_blobs = get_best_color(blobs_obj, 20, 2)
+    red_blobs = get_best_color(blobs_obj, 30, 0)
+    green_blobs = get_best_color(blobs_obj, 30, 1)
+    blue_blobs = get_best_color(blobs_obj, 30, 2)
     colors_blobs = [red_blobs, green_blobs, blue_blobs]
-    triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 5)
+    triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 50)
     copy_image = image.copy()
     triangles_image = draw_triangles(copy_image, triangles, colors_blobs)
     return triangles_image
@@ -378,6 +390,13 @@ def apply_gabor(image):
     filters = create_gaborfilter()
     image = apply_filter(image, filters)
     return image
+
+def rotated(image) :
+    global best_triangle
+    angle = atan2((best_triangle[0].coords[1] - r), (best_triangle[0].coords[0] - r))
+    rot_image = image.rotate((angle * (180 / pi)))
+    return rot_image
+
 def process_photo(input_file, full_research_mode):
     filename = input_file.split('.')[0]
     utils.set_file_name(filename)
@@ -391,9 +410,11 @@ def process_photo(input_file, full_research_mode):
 
     run_experiment(color_picture, blobs_obj)
 
-    run_experiment(find_draw_triangles, image, blobs_obj)
-
     run_experiment(generate_some_fields, image, blobs_obj)
+    image = run_experiment(find_draw_triangles, image, blobs_obj)
+
+    image = run_experiment(rotated, image)
+
 
     if not full_research_mode:
         return
@@ -403,6 +424,7 @@ def process_photo(input_file, full_research_mode):
     run_experiment(get_dct, image, 32)
 
     run_experiment(get_distinctiveness, image, blobs_obj)
+
 
     phash = imagehash.phash(image)
     hash_as_str = str(phash)

@@ -130,8 +130,8 @@ def draw_triangles(image, triangles, best_blobs_color):
     draw = ImageDraw.Draw(image)
     for (blob1, blob2, blob3) in triangles:
         draw.line([(blob1.coords[0], blob1.coords[1]), (blob2.coords[0], blob2.coords[1])], fill="red", width=0)
-        draw.line([(blob2.coords[0], blob2.coords[1]), (blob3.coords[0], blob3.coords[1])], fill="green", width=0)
-        draw.line([(blob3.coords[0], blob3.coords[1]), (blob1.coords[0], blob1.coords[1])], fill="blue", width=0)
+        draw.line([(blob2.coords[0], blob2.coords[1]), (blob3.coords[0], blob3.coords[1])], fill="red", width=0)
+        draw.line([(blob3.coords[0], blob3.coords[1]), (blob1.coords[0], blob1.coords[1])], fill="red", width=0)
 
     for clr in range(3):
         for blob in best_blobs_color[clr]:
@@ -397,6 +397,14 @@ def rotated(image) :
     rot_image = image.rotate((angle * (180 / pi)))
     return rot_image
 
+def affine_transform(image, src, dst):
+    image_array = to_array(image)
+    rows, cols = image_array.shape[:2]
+    transform_matrix = cv2.getAffineTransform(src, dst)
+    transformed_array = cv2.warpAffine(image_array, transform_matrix, (cols,rows))
+    transformed_image = to_image(transformed_array)
+    return transformed_image
+
 
 def get_hash(image, coords, size=8):
     image_pixels = image.load()
@@ -430,9 +438,12 @@ def process_photo(input_file, full_research_mode):
     run_experiment(color_picture, blobs_obj)
 
     #run_experiment(generate_some_fields, image, blobs_obj)
-    run_experiment(find_draw_triangles, image, blobs_obj)
+    image = run_experiment(find_draw_triangles, image, blobs_obj)
 
-    image = run_experiment(rotated, image)
+    src = np.float32([[best_triangle[0].coords[1], best_triangle[0].coords[0]],
+                      [best_triangle[1].coords[1], best_triangle[1].coords[0]],
+                      [best_triangle[2].coords[1], best_triangle[2].coords[0]]])
+    image = run_experiment(affine_transform, image, src, np.float32([[512, 512], [768, 512], [512, 768]]))
 
 
     if not full_research_mode:

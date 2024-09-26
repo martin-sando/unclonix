@@ -159,7 +159,7 @@ def to_array_3d(input_image):
             array_image[x1, y1] = image_pixels[x1, y1]
     return array_image
 
-def to_image(input_array, width, length):
+def to_image(input_array, width=req_width, length=req_height):
     image = Image.new("RGB", [width, length])
     draw_result = ImageDraw.Draw(image)
     for x1 in range(width):

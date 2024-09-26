@@ -123,7 +123,7 @@ def find_triangles(r, best_blobs_color, req_angles, threshold):
     triangles = [triangle]
     global best_triangle
     best_triangle = triangle
-    print(best_score)
+    #print(best_score)
     return triangles
 
 def draw_triangles(image, triangles, best_blobs_color):
@@ -397,6 +397,25 @@ def rotated(image) :
     rot_image = image.rotate((angle * (180 / pi)))
     return rot_image
 
+
+def get_hash(image, coords, size=8):
+    image_pixels = image.load()
+    array_image = np.zeros((coords[2] - coords[0], coords[3] - coords[1]))
+    for x1 in range(coords[0], coords[2]):
+        for y1 in range(coords[1], coords[3]):
+            array_image[x1, y1] = image_pixels[x1, y1][0] + 0.0
+    dct_array = cv2.dct(array_image)
+    bin_hash = ""
+    for i in range(size):
+        for j in range(size):
+            if (dct_array[i][j] > 0):
+                bin_hash += '1'
+            else:
+                bin_hash += '0'
+    return bin_hash
+
+
+
 def process_photo(input_file, full_research_mode):
     filename = input_file.split('.')[0]
     utils.set_file_name(filename)
@@ -410,8 +429,8 @@ def process_photo(input_file, full_research_mode):
 
     run_experiment(color_picture, blobs_obj)
 
-    run_experiment(generate_some_fields, image, blobs_obj)
-    image = run_experiment(find_draw_triangles, image, blobs_obj)
+    #run_experiment(generate_some_fields, image, blobs_obj)
+    run_experiment(find_draw_triangles, image, blobs_obj)
 
     image = run_experiment(rotated, image)
 
@@ -425,8 +444,6 @@ def process_photo(input_file, full_research_mode):
 
     run_experiment(get_distinctiveness, image, blobs_obj)
 
-
-    phash = imagehash.phash(image)
-    hash_as_str = str(phash)
+    hash_as_str = get_hash(image, (0, 0, 1024, 1024), 16)
     print(hash_as_str)
     utils.set_last_time('finishing_labor')

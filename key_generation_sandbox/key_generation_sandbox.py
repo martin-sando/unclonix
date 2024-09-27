@@ -24,6 +24,8 @@ if __name__ == '__main__':
     os.makedirs(utils.bloblist_folder, exist_ok=True)
     os.makedirs(utils.report_folder, exist_ok=True)
     os.makedirs(utils.time_folder, exist_ok=True)
+    if os.path.exists(utils.hashes_file):
+        os.remove(utils.hashes_file)
     utils.set_total_time()
     prefix = ''
     mask = ''

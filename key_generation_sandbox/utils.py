@@ -12,6 +12,7 @@ output_folder = '../output'
 bloblist_folder = output_folder + '/bloblist'
 report_folder = output_folder + '/report'
 time_folder = output_folder + '/time'
+hashes_file = output_folder + '/hashes.txt'
 
 white = (255, 255, 255)
 gray = (127, 127, 127)
@@ -311,3 +312,6 @@ def get_rotated_surroundings(image, coords, cutter_size=128):
     surr_img = rot_image.crop(
         (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
     return surr_img
+
+def bin2hex(str_bin):
+    return hex(int(str_bin, 2))[2:].rjust((len(str_bin) + 3) // 4, '0')

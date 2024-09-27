@@ -18,7 +18,6 @@ import utils
 
 check_inside = utils.check_inside
 black, blue, red, green, white = utils.black, utils.blue, utils.red, utils.green, utils.white
-input_folder, output_folder, bloblist_folder, report_folder, time_folder = utils.input_folder, utils.output_folder, utils.bloblist_folder, utils.report_folder, utils.time_folder
 req_size, req_width, req_height, r = utils.req_size, utils.req_width, utils.req_height, utils.r
 to_array, to_image = utils.to_array, utils.to_image
 save = utils.save
@@ -481,7 +480,7 @@ def logging_blobs(image, filename):
 
     blobs_obj = brighten_blobs(image, blobs_obj)
     blobs_obj = add_dcts(image, req_width, req_height, blobs_obj)
-    text_file = open(os.path.join(bloblist_folder, filename + '.txt'), 'w')
+    text_file = open(os.path.join(utils.bloblist_folder, filename + '.txt'), 'w')
     color_blobs = {}
     for blob in blobs_obj:
         blob.log(text_file)
@@ -515,7 +514,7 @@ def process_photo(input_file, full_research_mode):
     utils.set_save_subfolder('')
     print('Processing ' + filename)
 
-    image = Image.open(os.path.join(input_folder, input_file))
+    image = Image.open(os.path.join(utils.input_folder, input_file))
     saved_image = image.copy()
 
     compression_power = image.width // 150

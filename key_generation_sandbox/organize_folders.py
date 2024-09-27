@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import os.path
+import utils
 
-by_folders = '../input/by_folders'
-to_folder= '../input'
+by_folders = utils.input_folder + '/by_folders'
+to_folder= utils.input_folder
 for d in os.listdir(by_folders):
 	for f in os.listdir(by_folders + '/' + d):
 		file_from = by_folders + '/' + d + '/' + f

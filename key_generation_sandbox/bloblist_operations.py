@@ -9,7 +9,6 @@ from findiff import Gradient, Divergence, Laplacian, Curl
 import utils
 check_inside = utils.check_inside
 black, blue, red, green, white = utils.black, utils.blue, utils.red, utils.green, utils.white
-input_folder, output_folder, bloblist_folder, report_folder, time_folder = utils.input_folder, utils.output_folder, utils.bloblist_folder, utils.report_folder, utils.time_folder
 req_size, req_width, req_height = utils.req_size, utils.req_width, utils.req_height
 to_array, to_image = utils.to_array, utils.to_image
 hru_array = utils.hru_array
@@ -431,7 +430,7 @@ def process_photo(input_file, full_research_mode):
     utils.set_picture_number(utils.image_processing_picture_number_end)
     utils.set_save_subfolder('report')
     print('Processing (phase 2) ' + filename)
-    blobs_obj = utils.get_blob_list(os.path.join(bloblist_folder, filename + '.txt'))
+    blobs_obj = utils.get_blob_list(os.path.join(utils.bloblist_folder, filename + '.txt'))
     image = Image.open(utils.get_result_name())
 
 

@@ -1,5 +1,7 @@
 import os.path
 import sys
+
+import PIL
 import cv2
 import imagehash
 from PIL import Image, ImageDraw
@@ -405,21 +407,26 @@ def affine_transform(image, src, dst):
     return transformed_image
 
 
-def get_hash(image, coords, size=8):
-    image_pixels = image.load()
-    array_image = np.zeros((coords[2] - coords[0], coords[3] - coords[1]))
-    for x1 in range(coords[0], coords[2]):
-        for y1 in range(coords[1], coords[3]):
-            array_image[x1, y1] = image_pixels[x1, y1][0] + 0.0
-    dct_array = cv2.dct(array_image)
-    bin_hash = ""
-    for i in range(size):
-        for j in range(size):
-            if (dct_array[i][j] > 0):
-                bin_hash += '1'
+def get_hash(image, coords=(0, 0, req_width, req_height), hash_size=8, highfreq_factor=4):
+    image = image.crop((coords[0], coords[1], coords[2], coords[3]))
+    if hash_size < 2:
+        raise ValueError('Hash size must be greater than or equal to 2')
+
+    import scipy.fftpack
+    img_size = hash_size * highfreq_factor
+    image = image.convert('L').resize((img_size, img_size))
+    pixels = np.asarray(image)
+    dct = scipy.fftpack.dct(scipy.fftpack.dct(pixels, axis=0), axis=1)
+    dctlowfreq = dct[:hash_size, :hash_size]
+    med = np.median(dctlowfreq)
+    hash = ""
+    for i in range(hash_size):
+        for j in range(hash_size):
+            if (dctlowfreq[i][j] > med):
+                hash += '1'
             else:
-                bin_hash += '0'
-    return bin_hash
+                hash += '0'
+    return hash
 
 
 
@@ -437,12 +444,12 @@ def process_photo(input_file, full_research_mode):
     run_experiment(color_picture, blobs_obj)
 
     #run_experiment(generate_some_fields, image, blobs_obj)
-    image = run_experiment(find_draw_triangles, image, blobs_obj)
+    run_experiment(find_draw_triangles, image, blobs_obj)
 
     src = np.float32([[best_triangle[0].coords[1], best_triangle[0].coords[0]],
                       [best_triangle[1].coords[1], best_triangle[1].coords[0]],
                       [best_triangle[2].coords[1], best_triangle[2].coords[0]]])
-    image = run_experiment(affine_transform, image, src, np.float32([[512, 512], [768, 512], [512, 768]]))
+    image = run_experiment(affine_transform, image, src, np.float32([[712, 512], [412, 339], [412, 685]]))
 
 
     if not full_research_mode:
@@ -455,7 +462,7 @@ def process_photo(input_file, full_research_mode):
     run_experiment(get_distinctiveness, image, blobs_obj)
 
     the_hash = utils.with_control(str(imagehash.phash(image)).rjust(16, '0'))
-    the_hash += '_' + utils.with_control(utils.bin2hex(get_hash(image, (0, 0, 1024, 1024), 8)))
+    the_hash += '_' + utils.with_control(utils.bin2hex(get_hash(image, (0, 0, 1024, 1024))))
     print(the_hash)
     with open(utils.hashes_file, 'a') as f:
         print(filename + '\t' + the_hash, file=f)

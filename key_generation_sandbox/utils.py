@@ -315,3 +315,6 @@ def get_rotated_surroundings(image, coords, cutter_size=128):
 
 def bin2hex(str_bin):
     return hex(int(str_bin, 2))[2:].rjust((len(str_bin) + 3) // 4, '0')
+
+def with_control(str_hex):
+    return str_hex + '[' + str(int(str_hex, 16) * 566 % 9566239) + ']'

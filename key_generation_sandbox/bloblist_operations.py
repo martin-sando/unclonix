@@ -454,8 +454,8 @@ def process_photo(input_file, full_research_mode):
 
     run_experiment(get_distinctiveness, image, blobs_obj)
 
-    the_hash = str(imagehash.phash(image)).rjust(16, '0')
-    the_hash += '_' + utils.bin2hex(get_hash(image, (0, 0, 1024, 1024), 8))
+    the_hash = utils.with_control(str(imagehash.phash(image)).rjust(16, '0'))
+    the_hash += '_' + utils.with_control(utils.bin2hex(get_hash(image, (0, 0, 1024, 1024), 8)))
     print(the_hash)
     with open(utils.hashes_file, 'a') as f:
         print(filename + '\t' + the_hash, file=f)

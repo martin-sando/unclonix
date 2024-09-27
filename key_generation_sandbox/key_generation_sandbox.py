@@ -6,7 +6,7 @@ import utils
 
 input_folder, output_folder, bloblist_folder, report_folder, time_folder = utils.input_folder, utils.output_folder, utils.bloblist_folder, utils.report_folder, utils.time_folder
 
-def run_all(prefix, mask):
+def run_all(prefix, mask, reverse):
     input_files = sorted(os.listdir(input_folder))
     if reverse:
         input_files = input_files[::-1]

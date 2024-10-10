@@ -506,7 +506,7 @@ def dilate(image, power):
     return utils.transpose(utils.to_image(image, req_width, req_height))
 
 
-def process_photo(input_file, full_research_mode):
+def process_photo(input_file, full_research_mode, directory=utils.input_folder):
     filename = input_file.split('.')[0]
     utils.set_file_name(filename)
     utils.set_picture_number(0)
@@ -514,7 +514,7 @@ def process_photo(input_file, full_research_mode):
     utils.set_save_subfolder('')
     print('Processing ' + filename)
 
-    image = Image.open(os.path.join(utils.input_folder, input_file))
+    image = Image.open(os.path.join(directory, input_file))
     saved_image = image.copy()
 
     compression_power = image.width // 150

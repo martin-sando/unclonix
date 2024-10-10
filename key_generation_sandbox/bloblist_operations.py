@@ -468,3 +468,4 @@ def process_photo(input_file, full_research_mode):
         print(filename + '\t' + the_hash, file=f)
 
     utils.set_last_time('finishing_labor')
+    return the_hash

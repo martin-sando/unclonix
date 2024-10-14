@@ -210,6 +210,13 @@ def save(image, tag, subfolder=''):
         image.save(os.path.join(output_folder, subfolder, tag + "_" + filename + ".png"))
     log_picture_number += 1
 
+def save_no_number(image, tag, subfolder=''):
+    global filename
+    if subfolder == '':
+        image.save(os.path.join(output_folder, filename + "_" + tag + ".png"))
+    else:
+        image.save(os.path.join(output_folder, subfolder, filename + "_" + tag + ".png"))
+
 def save_report(image, tag):
     save(image, tag, "report")
 

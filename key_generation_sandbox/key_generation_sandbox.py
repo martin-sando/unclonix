@@ -6,6 +6,7 @@ import utils
 
 def run_all(prefix, mask, reverse):
     input_files = sorted(os.listdir(utils.input_folder))
+    hash = ""
     if reverse:
         input_files = input_files[::-1]
     for input_file in input_files:
@@ -16,8 +17,21 @@ def run_all(prefix, mask, reverse):
             image_processing.process_photo(input_file, False)
         else:
             print("Reusing computed bloblist")
-        bloblist_operations.process_photo(input_file, True)
+        hash = bloblist_operations.process_photo(input_file, True)
+    return hash
 
+def handle_image():
+    utils.set_total_time()
+    try:
+        os.makedirs(utils.input_folder, exist_ok=True)
+        os.makedirs(utils.output_folder, exist_ok=True)
+        os.makedirs(utils.bloblist_folder, exist_ok=True)
+        os.makedirs(utils.report_folder, exist_ok=True)
+        os.makedirs(utils.time_folder, exist_ok=True)
+        hash = run_all('', 'bot_photo', False)
+    except:
+        return "Error"
+    return hash
 
 if __name__ == '__main__':
     os.makedirs(utils.output_folder, exist_ok=True)

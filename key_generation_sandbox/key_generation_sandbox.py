@@ -20,7 +20,7 @@ def run_all(prefix, mask, reverse):
         hash = bloblist_operations.process_photo(input_file, True)
     return hash
 
-def handle_image():
+def handle_image(name):
     utils.set_total_time()
     try:
         os.makedirs(utils.input_folder, exist_ok=True)
@@ -28,7 +28,7 @@ def handle_image():
         os.makedirs(utils.bloblist_folder, exist_ok=True)
         os.makedirs(utils.report_folder, exist_ok=True)
         os.makedirs(utils.time_folder, exist_ok=True)
-        hash = run_all('', 'bot_photo', False)
+        hash = run_all('', name, False)
     except:
         return "Error"
     return hash

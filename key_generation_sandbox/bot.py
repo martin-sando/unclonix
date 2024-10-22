@@ -2,6 +2,7 @@ import datetime
 from pathlib import Path
 import telebot
 import key_generation_sandbox
+import utils
 
 
 with open(Path.home() / ".ssh" / "unclonix" / "unclonix_hash_bot.txt") as f:
@@ -25,11 +26,12 @@ def handle_photo(message):
     name = "bot" + datetime.datetime.now(datetime.UTC).strftime('%Y%m%d_%H%M%S%f') + ".jpg"
     with open("../input/" + name, 'wb') as new_file:
         new_file.write(downloaded_file)
-    given_hash = key_generation_sandbox.handle_image(name)
-    if given_hash == "Error":
+    utils.set_total_time()
+    try:
+        the_hash = key_generation_sandbox.run(name)
+        bot.send_message(message.from_user.id, "Image hash is " + the_hash)
+    except:
         bot.send_message(message.from_user.id, "An error occurred while calculating hash")
-    else:
-        bot.send_message(message.from_user.id, "Image hash is " + given_hash)
 
 
 def run():

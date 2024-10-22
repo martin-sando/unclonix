@@ -14,6 +14,15 @@ report_folder = output_folder + '/report'
 time_folder = output_folder + '/time'
 hashes_file = output_folder + '/hashes.txt'
 
+def prepare():
+    os.makedirs(input_folder, exist_ok=True)
+    os.makedirs(output_folder, exist_ok=True)
+    os.makedirs(bloblist_folder, exist_ok=True)
+    os.makedirs(report_folder, exist_ok=True)
+    os.makedirs(time_folder, exist_ok=True)
+
+prepare()
+
 white = (255, 255, 255)
 gray = (127, 127, 127)
 black = (0, 0, 0)

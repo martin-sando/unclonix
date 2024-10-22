@@ -32,5 +32,10 @@ def handle_photo(message):
         bot.send_message(message.from_user.id, "Image hash is " + given_hash)
 
 
-print('Running bot')
-bot.polling(none_stop=True, interval=0)
+def run():
+    print('Running bot')
+    bot.polling(none_stop=True, interval=0)
+
+
+if __name__ == '__main__':
+    run()

@@ -46,8 +46,8 @@ if __name__ == '__main__':
     reverse = False
     for arg in sys.argv:
         if arg == 'bot':
-            import unclonix_bot
-            unclonix_bot.run()
+            import bot
+            bot.run()
             exit()
         if arg.startswith('--prefix='):
             prefix = arg[9:]

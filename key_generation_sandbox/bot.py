@@ -22,7 +22,7 @@ def handle_photo(message):
     file_info = bot.get_file(file_id)
     print('file.file_path =', file_info.file_path)
     downloaded_file = bot.download_file(file_info.file_path)
-    name = "bot_photo" + str(hash(datetime.datetime.now())) + ".jpg"
+    name = "bot" + datetime.datetime.now(datetime.UTC).strftime('%Y%m%d_%H%M%S%f') + ".jpg"
     with open("../input/" + name, 'wb') as new_file:
         new_file.write(downloaded_file)
     given_hash = key_generation_sandbox.handle_image(name)

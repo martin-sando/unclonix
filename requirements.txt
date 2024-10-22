@@ -3,3 +3,4 @@ imagehash
 matplotlib
 opencv-python
 scikit-image
+telebot

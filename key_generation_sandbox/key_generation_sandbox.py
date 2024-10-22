@@ -45,6 +45,10 @@ if __name__ == '__main__':
     mask = ''
     reverse = False
     for arg in sys.argv:
+        if arg == 'bot':
+            import unclonix_bot
+            unclonix_bot.run()
+            exit()
         if arg.startswith('--prefix='):
             prefix = arg[9:]
         if arg.startswith('--mask='):

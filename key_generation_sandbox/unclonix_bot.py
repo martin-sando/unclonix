@@ -1,8 +1,13 @@
 import datetime
-
+from pathlib import Path
 import telebot
 import key_generation_sandbox
-bot = telebot.TeleBot('7535912693:AAEpT9-dab_JXS28tAw-GTKnzYVocjc9cIs')
+
+
+with open(Path.home() / ".ssh" / "unclonix" / "unclonix_hash_bot.txt") as f:
+    key = f.readline().strip()
+bot = telebot.TeleBot(key)
+
 
 @bot.message_handler(commands=['start', 'help'])
 def manual(message):
@@ -26,4 +31,6 @@ def handle_photo(message):
     else:
         bot.send_message(message.from_user.id, "Image hash is " + given_hash)
 
+
+print('Running bot')
 bot.polling(none_stop=True, interval=0)

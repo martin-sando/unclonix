@@ -1,6 +1,7 @@
 import datetime
 from pathlib import Path
 import telebot
+import traceback
 import key_generation_sandbox
 import utils
 
@@ -31,6 +32,7 @@ def handle_photo(message):
         the_hash = key_generation_sandbox.run(name)
         bot.send_message(message.from_user.id, "Image hash is " + the_hash)
     except:
+        print(traceback.format_exc())
         bot.send_message(message.from_user.id, "An error occurred while calculating hash")
 
 

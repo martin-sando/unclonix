@@ -6,6 +6,8 @@ import utils
 
 def run(input_file):
     filename = input_file.split('.')[0]
+    if os.path.isdir(os.path.join(utils.input_folder, filename)):
+        return ""
     if not os.path.isfile(os.path.join(utils.bloblist_folder, filename + '.txt')):
         image_processing.process_photo(input_file, False)
     else:

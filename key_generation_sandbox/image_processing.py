@@ -456,9 +456,10 @@ def binarying(image, threshold1, threshold2):
                 t = False
                 for dx in (-5, 5):
                     for dy in (-5, 5):
-                        if pixels[x1+dx, y1+dy][0] >= threshold2:
-                            t = True
-                            break
+                        if check_inside(x1+dx, y1+dy, req_width, req_height):
+                            if pixels[x1+dx, y1+dy][0] >= threshold2:
+                                t = True
+                                break
                     if t:
                         break
                 if not t:

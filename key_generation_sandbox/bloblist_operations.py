@@ -281,9 +281,9 @@ def get_angle_image(input_image, width, height, precision, mode, cutter_size=64)
 def find_draw_triangles(image, blobs_obj):
     add_colors(blobs_obj)
 
-    red_blobs = get_best_color(blobs_obj, 30, 0)
-    green_blobs = get_best_color(blobs_obj, 30, 1)
-    blue_blobs = get_best_color(blobs_obj, 30, 2)
+    red_blobs = get_best_color(blobs_obj, 5, 0)
+    green_blobs = get_best_color(blobs_obj, 5, 1)
+    blue_blobs = get_best_color(blobs_obj, 5, 2)
     colors_blobs = [red_blobs, green_blobs, blue_blobs]
     triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 50)
     copy_image = image.copy()
@@ -441,9 +441,9 @@ def process_photo(input_file, full_research_mode):
     image = Image.open(utils.get_result_name())
 
 
-    run_experiment(color_picture, blobs_obj)
+    #run_experiment(color_picture, blobs_obj)
 
-    #run_experiment(generate_some_fields, image, blobs_obj)
+    run_experiment(generate_some_fields, image, blobs_obj)
     run_experiment(find_draw_triangles, image, blobs_obj)
 
     src = np.float32([[best_triangle[0].coords[1], best_triangle[0].coords[0]],
@@ -457,9 +457,9 @@ def process_photo(input_file, full_research_mode):
 
     run_experiment(utils.draw_blobs, Image.new("RGB", [req_width, req_height]), 'image', blobs_obj)
 
-    run_experiment(get_dct, image, 32)
+    #run_experiment(get_dct, image, 32)
 
-    run_experiment(get_distinctiveness, image, blobs_obj)
+    #run_experiment(get_distinctiveness, image, blobs_obj)
 
     the_hash = utils.with_control(str(imagehash.phash(image)).rjust(16, '0'))
     the_hash += '_' + utils.with_control(utils.bin2hex(get_hash(image, (0, 0, 1024, 1024))))

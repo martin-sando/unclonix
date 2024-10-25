@@ -30,7 +30,7 @@ def get_best_color(blobs, amount, color_num):
     for blob in blobs:
         if blob.dct_128_8 == None:
             continue
-        if (color_dict[blob][color_num] >= amount):
+        if (color_dict[blob][color_num] >= colors[max(len(colors) - amount, 0)]):
             best_blobs.append(blob)
     return best_blobs
 

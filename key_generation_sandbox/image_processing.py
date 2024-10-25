@@ -240,7 +240,6 @@ def brighten_blobs(image, blobs):
                         brightness += exp(-(dist / (2 * size))) * pixels[(x, y)][0]
         brightness = brightness / (2 * size * size)
         blob.brightness = brightness
-        #if (brightness > 180 and brightness * size > 1000):
         brightened_blobs.append(blob)
     return brightened_blobs
 
@@ -446,25 +445,17 @@ def blurring(image, kernel_size):
     return image
 
 def binarying(image, threshold1, threshold2):
-    draw_result = ImageDraw.Draw(image)
+    binary_image = Image.new("RGB", (req_width, req_height))
+    draw_result = ImageDraw.Draw(binary_image)
     pixels = image.load()
     for x1 in range(req_width):
         for y1 in range(req_height):
-            if pixels[x1, y1][0] < threshold1:
-                draw_result.point((x1, y1), black)
-            else:
-                t = False
-                for dx in range(-5, 5):
-                    for dy in range(-5, 5):
-                        if check_inside(x1+dx, y1+dy, req_width, req_height):
-                            if pixels[x1+dx, y1+dy][0] >= threshold2:
-                                t = True
-                                break
-                    if t:
-                        break
-                if not t:
-                    draw_result.point((x1, y1), black)
-    return image
+            if pixels[x1, y1][0] >= threshold2:
+                for dx in range(-4, 5):
+                    for dy in range(-4, 5):
+                        if check_inside(x1+dx, y1+dy, req_width, req_height) and pixels[x1+dx, y1+dy][0] >= threshold1:
+                            draw_result.point((x1+dx, y1+dy), pixels[x1+dx, y1+dy])
+    return binary_image
 
 def logging_blobs(image, filename):
     image = image.copy()
@@ -538,7 +529,7 @@ def process_photo(input_file, full_research_mode, directory=utils.input_folder):
 
     image = run_experiment(blurring, image, (15, 15))
 
-    image = run_experiment(binarying, image, 70, 130)
+    image = run_experiment(binarying, image, 80, 180)
 
     utils.set_picture_number(utils.image_processing_picture_number_result)
 

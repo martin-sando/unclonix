@@ -175,6 +175,8 @@ def to_image(input_array, width=req_width, length=req_height):
     for x1 in range(width):
         for y1 in range(length):
             color = int(input_array[x1, y1])
+            if input_array[x1, y1] is tuple:
+                color = int((input_array[x1, y1][0] + input_array[x1, y1][1] + input_array[x1, y1][2]) / 3)
             draw_result.point((x1, y1), (color, color, color))
     return image
 

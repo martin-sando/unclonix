@@ -23,10 +23,10 @@ to_array, to_image = utils.to_array, utils.to_image
 save = utils.save
 run_experiment = utils.run_experiment
 def finding_circle_ph1(image, compression_power, saved_image):
-    rmin = int(min(image.height, image.width) / 8)
+    rmin = int(min(image.height, image.width) / 5)
     rmax = int(min(image.height, image.width) / 1.9)
     precision = 0.7
-    circles = find_circles(image, rmin, rmax, precision)
+    circles = find_circles(image, rmin, rmax, precision, 13)
 
     if not circles:
         print('Error: not found circles')
@@ -52,8 +52,8 @@ def finding_circle_ph2(image, compression_power):
     height = image.height
     rmin = int(min(width, height) / 2.7)
     rmax = int(min(width, height) / 1.9)
-    precision = 0.7
-    circles = find_circles(image, rmin, rmax, precision)
+    precision = 0.5
+    circles = find_circles(image, rmin, rmax, precision, 27)
 
     if not circles:
         print('Error: not found circles (extremely weird!)')
@@ -157,7 +157,7 @@ def trimming(image, skip_factor, precision):
     for x1 in range(req_width):
         for y1 in range(req_height):
             dist = sqrt((x1 - r) ** 2 + (y1 - r) ** 2) / r
-            if dist >= 0.99:
+            if dist >= 0.93:
                 draw_result.point((x1, y1), black)
             else:
                 if median_field[x1, y1][0] == 0:
@@ -442,7 +442,7 @@ def compressing(image, compression_power):
 def blurring(image, kernel_size):
     circled_array = to_array(image)
     circled_array = cv2.GaussianBlur(circled_array, kernel_size,0)
-    image = to_image(circled_array, req_width, req_height)
+    image = to_image(circled_array, image.width, image.height)
     return image
 
 def binarying(image, threshold1, threshold2):
@@ -454,8 +454,8 @@ def binarying(image, threshold1, threshold2):
                 draw_result.point((x1, y1), black)
             else:
                 t = False
-                for dx in (-5, 5):
-                    for dy in (-5, 5):
+                for dx in range(-5, 5):
+                    for dy in range(-5, 5):
                         if check_inside(x1+dx, y1+dy, req_width, req_height):
                             if pixels[x1+dx, y1+dy][0] >= threshold2:
                                 t = True
@@ -518,7 +518,7 @@ def process_photo(input_file, full_research_mode, directory=utils.input_folder):
     image = Image.open(os.path.join(directory, input_file))
     saved_image = image.copy()
 
-    compression_power = image.width // 150
+    compression_power = image.width // 100
 
     save(image, 'input')
 

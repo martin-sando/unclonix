@@ -1,9 +1,11 @@
 from math import sqrt, atan2, pi
+
+import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 from math import sqrt, pi, cos, sin
 from collections import defaultdict
-def canny_edge_detector(input_image):
+def canny_edge_detector(input_image, blur_power):
     input_pixels = input_image.load()
     width = input_image.width
     height = input_image.height
@@ -11,8 +13,9 @@ def canny_edge_detector(input_image):
     # Transform the image to grayscale
     grayscaled = compute_grayscale(input_pixels, width, height)
 
+
     # Blur it to remove noise
-    blurred = compute_blur(grayscaled, width, height)
+    blurred = compute_blur(grayscaled, blur_power)
 
     # Compute the gradient
     gradient, direction = compute_gradient(blurred, width, height)
@@ -35,34 +38,8 @@ def compute_grayscale(input_pixels, width, height):
     return grayscale
 
 
-def compute_blur(input_pixels, width, height):
-    # Keep coordinate inside image
-    clip = lambda x, l, u: l if x < l else u if x > u else x
-
-    # Gaussian kernel
-    kernel = np.array([
-        [1 / 256,  4 / 256,  6 / 256,  4 / 256, 1 / 256],
-        [4 / 256, 16 / 256, 24 / 256, 16 / 256, 4 / 256],
-        [6 / 256, 24 / 256, 36 / 256, 24 / 256, 6 / 256],
-        [4 / 256, 16 / 256, 24 / 256, 16 / 256, 4 / 256],
-        [1 / 256,  4 / 256,  6 / 256,  4 / 256, 1 / 256]
-    ])
-
-    # Middle of the kernel
-    offset = len(kernel) // 2
-
-    # Compute the blurred image
-    blurred = np.empty((width, height))
-    for x in range(width):
-        for y in range(height):
-            acc = 0
-            for a in range(len(kernel)):
-                for b in range(len(kernel)):
-                    xn = clip(x + a - offset, 0, width - 1)
-                    yn = clip(y + b - offset, 0, height - 1)
-                    acc += input_pixels[xn, yn] * kernel[a, b]
-            blurred[x, y] = int(acc)
-    return blurred
+def compute_blur(input_pixels, blur_power):
+    return cv2.GaussianBlur(input_pixels, (blur_power, blur_power) ,0)
 
 
 def compute_gradient(input_pixels, width, height):
@@ -112,7 +89,7 @@ def filter_strong_edges(gradient, width, height, low, high):
 
     return list(keep)
 
-def find_circles(input_image, rmin, rmax, precision):
+def find_circles(input_image, rmin, rmax, precision, blur_power):
     steps = 30
     threshold = precision
 
@@ -122,7 +99,7 @@ def find_circles(input_image, rmin, rmax, precision):
             points.append((r, int(r * cos(2 * pi * t / steps)), int(r * sin(2 * pi * t / steps))))
 
     acc = defaultdict(int)
-    for x, y in canny_edge_detector(input_image):
+    for x, y in canny_edge_detector(input_image, blur_power):
         for r, dx, dy in points:
             a = x - dx
             b = y - dy

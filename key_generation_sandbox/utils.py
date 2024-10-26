@@ -278,9 +278,11 @@ def run_experiment(method, *method_args):
     set_last_time(method_name)
     return result_image
 
-def draw_blobs(image, blobs_list, blobs_dict=None, mode_plus=False, mode_image=False, mode_circle=False, mode_circumference=False):
+def draw_blobs(image, blobs_list, blobs_dict=None, mode_plus=False, mode_image=False, mode_circle=False, mode_circumference=False, only_distinctive=False):
     draw_result = ImageDraw.Draw(image)
     for blob in blobs_list:
+        if only_distinctive and blob.distinctiveness == 0:
+            continue
         x = int(blob.coords[0])
         y = int(blob.coords[1])
         sigma = blob.size

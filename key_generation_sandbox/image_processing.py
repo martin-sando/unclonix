@@ -198,7 +198,7 @@ def brightening(image, bright_coef):
             draw_result.point((x1, y1), (color, color, color))
     return image
 
-def _processed(image, power):
+def processed(image, power):
     pixels = image.load()
     draw_result = ImageDraw.Draw(image)
     deltas = []
@@ -399,7 +399,7 @@ def get_partial_image(image, req_width, req_height):
                 draw_parts.point((i, j), black)
     return parts_image
 
-def add_dcts(input_image, width, height, blobs, cutter_size=128):
+def add_properties(input_image, width, height, blobs, cutter_size=128):
     calculated_blobs = []
     r = width // 2
     for blob in blobs:
@@ -471,7 +471,7 @@ def logging_blobs(image, filename):
         blobs_obj.append(Blob(coords, size))
 
     blobs_obj = brighten_blobs(image, blobs_obj)
-    blobs_obj = add_dcts(image, req_width, req_height, blobs_obj)
+    blobs_obj = add_properties(image, req_width, req_height, blobs_obj)
     text_file = open(os.path.join(utils.bloblist_folder, filename + '.txt'), 'w')
     color_blobs = {}
     for blob in blobs_obj:
@@ -534,7 +534,7 @@ def process_photo(input_file, full_research_mode, directory=utils.input_folder):
     utils.set_picture_number(utils.image_processing_picture_number_result)
 
     #image = run_experiment(dilate, image, -2)
-    image = run_experiment(_processed, image, 12)
+    image = run_experiment(processed, image, 12)
 
     utils.set_save_subfolder('report')
     run_experiment(laplacian, image)

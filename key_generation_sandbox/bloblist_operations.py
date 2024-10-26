@@ -9,6 +9,8 @@ import numpy as np
 from math import sqrt, pi, cos, sin, exp, atan2
 from findiff import Gradient, Divergence, Laplacian, Curl
 import utils
+from image_processing import distinctiveness_coef
+
 check_inside = utils.check_inside
 black, blue, red, green, white = utils.black, utils.blue, utils.red, utils.green, utils.white
 req_size, req_width, req_height = utils.req_size, utils.req_width, utils.req_height
@@ -334,7 +336,7 @@ def get_dct(image, dct_size):
 
     return dct_image
 
-def get_distinctiveness(image, blobs_obj, sample_size=32):
+def draw_distinctiveness(image, blobs_obj):
     image = image.copy()
     pixels = to_array(image)
     blobs_dict = {}
@@ -342,7 +344,7 @@ def get_distinctiveness(image, blobs_obj, sample_size=32):
     for blob in blobs_obj:
         xc = round(blob.coords[0])
         yc = round(blob.coords[1])
-        length = blob.size * 1.6
+        length = blob.size * distinctiveness_coef()
         length2 = blob.size * 0.8
         cnt = 0
         brightness = 0
@@ -353,27 +355,14 @@ def get_distinctiveness(image, blobs_obj, sample_size=32):
                 if (length - 1) <= dist <= (length):
                     cnt += 1
                     brightness += max(pixels[xc + i, yc + j] - 20, 0)
-                    # draw_result.point((xc + i, yc + j), green)
-
-                if (length2 - 1) <= dist <= (length2):
-                    cnt += 1
-                    brightness2 += max((170 - pixels[xc + i, yc + j]), 0)
-                    # draw_result.point((xc + i, yc + j), green)
+                    draw_result.point((xc + i, yc + j), green)
+                # if (length2 - 1) <= dist <= (length2):
+                #     cnt += 1
+                #     brightness2 += max((170 - pixels[xc + i, yc + j]), 0)
+                #     draw_result.point((xc + i, yc + j), green)
         brightness *= (brightness2 + 300)
         brightness /= 10000
         blobs_dict[blob] = (int(brightness), 0, 256 - int(brightness))
-
-        sample = []
-        for i in range(sample_size):
-            x = round(xc + length * cos(i * 2 * pi / sample_size))
-            y = round(yc + length * sin(i * 2 * pi / sample_size))
-            sample.append(round(pixels[x, y]))
-        sample.sort()
-        sample.reverse()
-        print(sample)
-        blobs_dict[blob] = (0, 0, 255 if sample[2] > 30 else 0)
-
-
     image = utils.draw_blobs(image, blobs_obj, blobs_dict, mode_circle=True)
     return image
 
@@ -468,7 +457,7 @@ def process_photo(input_file, full_research_mode):
 
     run_experiment(research_picture, image, blobs_obj)
 
-    run_experiment(get_distinctiveness, image, blobs_obj)
+    run_experiment(draw_distinctiveness, image, blobs_obj)
 
     #run_experiment(color_picture, blobs_obj)
 

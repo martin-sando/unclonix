@@ -233,7 +233,7 @@ def save_report(image, tag):
     save(image, tag, "report")
 
 
-result_tag = '_processed'
+result_tag = 'processed'
 
 def get_result_name():
     return os.path.join(output_folder, filename + "_" + "p" + str(image_processing_picture_number_result).zfill(2) + result_tag + ".png")

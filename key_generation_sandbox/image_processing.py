@@ -199,6 +199,7 @@ def brightening(image, bright_coef):
     return image
 
 def processed(image, power):
+    assert processed.__name__ == utils.result_tag
     pixels = image.load()
     draw_result = ImageDraw.Draw(image)
     deltas = []
@@ -226,7 +227,6 @@ def processed(image, power):
 
 def brighten_blobs(image, blobs):
     pixels = image.load()
-    brightened_blobs = []
     for blob in blobs:
         x = blob.coords[0]
         y = blob.coords[1]
@@ -240,8 +240,25 @@ def brighten_blobs(image, blobs):
                         brightness += exp(-(dist / (2 * size))) * pixels[(x, y)][0]
         brightness = brightness / (2 * size * size)
         blob.brightness = brightness
-        brightened_blobs.append(blob)
-    return brightened_blobs
+
+def distinctiveness_coef():
+    return 1.6
+
+def add_distinctiveness(image, blobs_obj, sample_size=32):
+    image = image.copy()
+    pixels = to_array(image)
+    for blob in blobs_obj:
+        xc = round(blob.coords[0])
+        yc = round(blob.coords[1])
+        length = blob.size * distinctiveness_coef()
+        sample = []
+        for i in range(sample_size):
+            x = round(xc + length * cos(i * 2 * pi / sample_size))
+            y = round(yc + length * sin(i * 2 * pi / sample_size))
+            sample.append(round(pixels[x, y]))
+        sample.sort()
+        sample.reverse()
+        blob.distinctiveness = 0 if sample[2] >= 30 else 1
 
 
 def get_fft_image(image, image_size, fft_radius, coef_1, coef_2):
@@ -400,7 +417,6 @@ def get_partial_image(image, req_width, req_height):
     return parts_image
 
 def add_properties(input_image, width, height, blobs, cutter_size=128):
-    calculated_blobs = []
     r = width // 2
     for blob in blobs:
         dist = sqrt((blob.coords[0] - r) ** 2 + (blob.coords[1] - r) ** 2) / r
@@ -431,8 +447,6 @@ def add_properties(input_image, width, height, blobs, cutter_size=128):
                 lst.append(bmp_128_15[j, i])
             bmp_128_15_t.append(lst)
         blob.bmp_128_15 = bmp_128_15_t
-        calculated_blobs.append(blob)
-    return calculated_blobs
 
 
 def compressing(image, compression_power):
@@ -470,8 +484,9 @@ def logging_blobs(image, filename):
         size = blob[2]
         blobs_obj.append(Blob(coords, size))
 
-    blobs_obj = brighten_blobs(image, blobs_obj)
-    blobs_obj = add_properties(image, req_width, req_height, blobs_obj)
+    brighten_blobs(image, blobs_obj)
+    add_distinctiveness(image, blobs_obj)
+    add_properties(image, req_width, req_height, blobs_obj)
     text_file = open(os.path.join(utils.bloblist_folder, filename + '.txt'), 'w')
     color_blobs = {}
     for blob in blobs_obj:

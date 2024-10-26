@@ -1,15 +1,11 @@
 import os.path
-import sys
-
-import PIL
 import cv2
 import imagehash
 from PIL import Image, ImageDraw
 import numpy as np
 from math import sqrt, pi, cos, sin, exp, atan2
-from findiff import Gradient, Divergence, Laplacian, Curl
 import utils
-from image_processing import distinctiveness_coef
+from image_processing import distinctiveness_coef, calculate_properties
 
 check_inside = utils.check_inside
 black, blue, red, green, white = utils.black, utils.blue, utils.red, utils.green, utils.white
@@ -23,8 +19,10 @@ r = utils.r
 
 def research_picture(image, blobs):
     image = image.copy()
-    print(dir(blobs[0]))
-    image = utils.draw_blobs(image, blobs, mode_circumference=True)
+    colors = {}
+    for blob in blobs:
+        colors[blob] = round(max(blob.bmp_128_7[0])), round(max(blob.bmp_128_7[3])), round(max(blob.bmp_128_7[6]))
+    image = utils.draw_blobs(image, blobs, colors, mode_circle=True, only_distinctive=True)
     return image
 
 
@@ -304,15 +302,12 @@ def find_draw_triangles(image, blobs_obj):
 
 def generate_some_fields(image, blobs_obj):
     def example_measure(image, coords):
-        blob_img = utils.get_rotated_surroundings(image, coords)
-        bmp_128_7 = to_array(blob_img.resize((7, 7)))
-        bmp_128_7_t = []
-        for i in range(7):
-            lst = []
-            for j in range(7):
-                lst.append(bmp_128_7[j, i])
-            bmp_128_7_t.append(lst)
-        color = (bmp_128_7_t[0][0], bmp_128_7_t[6][0], bmp_128_7_t[0][6])
+        square = utils.get_rotated_surroundings(image, coords)
+        result = calculate_properties(square)
+        b = result.bmp_128_7
+        d = result.dct_128_8
+        x = max([abs(x) for x in sum(d, [])])
+        color = (np.sign(x), 0, 0)
         return color
 
     field_image = get_field_image(example_measure, image, precision=10, contrast=70)
@@ -461,7 +456,7 @@ def process_photo(input_file, full_research_mode):
 
     #run_experiment(color_picture, blobs_obj)
 
-    # run_experiment(generate_some_fields, image, blobs_obj)
+    run_experiment(generate_some_fields, image, blobs_obj)
     run_experiment(find_draw_triangles, image, blobs_obj)
 
     src = np.float32([[best_triangle[0].coords[1], best_triangle[0].coords[0]],

@@ -477,7 +477,7 @@ def logging_blobs(image, filename):
     for blob in blobs_obj:
         blob.log(text_file)
         color_blobs[blob] = blue
-    image = utils.draw_blobs(image, 'plus', blobs_obj, color_blobs)
+    image = utils.draw_blobs(image, blobs_obj, color_blobs, mode_plus=True)
     return image
 
 def laplacian(image):

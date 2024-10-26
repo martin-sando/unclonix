@@ -348,7 +348,7 @@ def get_distinctiveness(image, blobs_obj):
         brightness *= (brightness2 + 300)
         brightness /= 10000
         blobs_dict[blob] = (int(brightness), 0, 256 - int(brightness))
-    image = utils.draw_blobs(image, 'circumference', blobs_obj, blobs_dict)
+    image = utils.draw_blobs(image, blobs_obj, blobs_dict, mode_circumference=True)
     return image
 
 
@@ -455,7 +455,9 @@ def process_photo(input_file, full_research_mode):
     if not full_research_mode:
         return
 
-    run_experiment(utils.draw_blobs, Image.new("RGB", [req_width, req_height]), 'image', blobs_obj)
+    def draw_only_blobs():
+        utils.draw_blobs(Image.new("RGB", [req_width, req_height]), blobs_obj, mode_image=True)
+    run_experiment(draw_only_blobs)
 
     #run_experiment(get_dct, image, 32)
 

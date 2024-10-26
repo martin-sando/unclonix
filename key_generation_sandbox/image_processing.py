@@ -6,6 +6,7 @@ import imagehash
 from math import sqrt, pi, cos, sin, exp, atan2
 from canny import find_circles, rotate, compute_gradient
 from collections import defaultdict
+import types
 import sys
 import os.path
 import numpy as np
@@ -416,37 +417,47 @@ def get_partial_image(image, req_width, req_height):
                 draw_parts.point((i, j), black)
     return parts_image
 
+def calculate_properties(square):
+    result = types.SimpleNamespace()
+    blob_pixels = square.load()
+    cutter_size = square.size[0]
+
+    array_image = np.zeros((cutter_size, cutter_size))
+    for x1 in range(cutter_size):
+        for y1 in range(cutter_size):
+            array_image[x1, y1] = blob_pixels[x1, y1][0] + 0.0
+
+    dct_array = cv2.dct(array_image)
+    dct_corner = [(x.tolist())[0:8] for x in dct_array[0:8]]
+    result.dct_128_8 = dct_corner
+    bmp_128_7 = to_array(square.resize((7, 7)))
+    bmp_128_7_t = []
+    for i in range(7):
+        lst = []
+        for j in range(7):
+            lst.append(bmp_128_7[j, i])
+        bmp_128_7_t.append(lst)
+    result.bmp_128_7 = bmp_128_7_t
+    bmp_128_15 = to_array(square.resize((15, 15)))
+    bmp_128_15_t = []
+    for i in range(15):
+        lst = []
+        for j in range(15):
+            lst.append(bmp_128_15[j, i])
+        bmp_128_15_t.append(lst)
+    result.bmp_128_15 = bmp_128_15_t
+    return result
+
+
 def add_properties(input_image, width, height, blobs, cutter_size=128):
     r = width // 2
     for blob in blobs:
         dist = sqrt((blob.coords[0] - r) ** 2 + (blob.coords[1] - r) ** 2) / r
-        blob_img = utils.get_rotated_surroundings(input_image, blob.coords, cutter_size)
-        blob_pixels = blob_img.load()
-
-        array_image = np.zeros((cutter_size, cutter_size))
-        for x1 in range(cutter_size):
-            for y1 in range(cutter_size):
-                array_image[x1, y1] = blob_pixels[x1, y1][0] + 0.0
-
-        dct_array = cv2.dct(array_image)
-        dct_corner = [(x.tolist())[0:8] for x in dct_array[0:8]]
-        blob.dct_128_8 = dct_corner
-        bmp_128_7 = to_array(blob_img.resize((7, 7)))
-        bmp_128_7_t = []
-        for i in range(7):
-            lst = []
-            for j in range(7):
-                lst.append(bmp_128_7[j, i])
-            bmp_128_7_t.append(lst)
-        bmp_128_15 = to_array(blob_img.resize((15, 15)))
-        blob.bmp_128_7 = bmp_128_7_t
-        bmp_128_15_t = []
-        for i in range(15):
-            lst = []
-            for j in range(15):
-                lst.append(bmp_128_15[j, i])
-            bmp_128_15_t.append(lst)
-        blob.bmp_128_15 = bmp_128_15_t
+        square = utils.get_rotated_surroundings(input_image, blob.coords, cutter_size)
+        result = calculate_properties(square)
+        blob.dct_128_8 = result.dct_128_8
+        blob.bmp_128_7 = result.bmp_128_7
+        blob.bmp_128_15 = result.bmp_128_15
 
 
 def compressing(image, compression_power):

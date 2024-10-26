@@ -18,6 +18,13 @@ save, save_report = utils.save, utils.save_report
 run_experiment = utils.run_experiment
 r = utils.r
 
+
+def research_picture(image, blobs):
+    print(dir(blobs[0]))
+    image = utils.draw_blobs(image, blobs, mode_circumference=True)
+    return image
+
+
 def get_best_color(blobs, amount, color_num):
     color_dict = add_colors(blobs)
     colors = []
@@ -440,6 +447,7 @@ def process_photo(input_file, full_research_mode):
     blobs_obj = utils.get_blob_list(os.path.join(utils.bloblist_folder, filename + '.txt'))
     image = Image.open(utils.get_result_name())
 
+    run_experiment(research_picture, image, blobs_obj)
 
     #run_experiment(color_picture, blobs_obj)
 

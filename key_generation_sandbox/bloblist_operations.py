@@ -342,8 +342,8 @@ def get_distinctiveness(image, blobs_obj):
         cnt = 0
         brightness = 0
         brightness2 = 0
-        for i in range(-int(length), int(length)):
-            for j in range(-int(length), int(length)):
+        for i in range(-int(length), int(length) + 1):
+            for j in range(-int(length), int(length) + 1):
                 dist = sqrt((i) ** 2 + (j) ** 2)
                 if (length - 1) <= dist <= (length):
                     cnt += 1
@@ -449,6 +449,8 @@ def process_photo(input_file, full_research_mode):
 
     run_experiment(research_picture, image, blobs_obj)
 
+    run_experiment(get_distinctiveness, image, blobs_obj)
+
     #run_experiment(color_picture, blobs_obj)
 
     run_experiment(generate_some_fields, image, blobs_obj)
@@ -468,8 +470,6 @@ def process_photo(input_file, full_research_mode):
     run_experiment(draw_only_blobs)
 
     #run_experiment(get_dct, image, 32)
-
-    #run_experiment(get_distinctiveness, image, blobs_obj)
 
     the_hash = utils.with_control(str(imagehash.phash(image)).rjust(16, '0'))
     the_hash += '_' + utils.with_control(utils.bin2hex(get_hash(image, (0, 0, 1024, 1024))))

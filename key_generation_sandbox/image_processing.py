@@ -491,7 +491,7 @@ def logging_blobs(image, filename):
     color_blobs = {}
     for blob in blobs_obj:
         blob.log(text_file)
-        color_blobs[blob] = blue
+        color_blobs[blob] = blue if blob.distinctiveness == 1 else red
     image = utils.draw_blobs(image, blobs_obj, color_blobs, mode_plus=True)
     return image
 

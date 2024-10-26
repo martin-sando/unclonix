@@ -449,11 +449,11 @@ def calculate_properties(square):
     return result
 
 
-def add_properties(input_image, width, height, blobs, cutter_size=128):
+def add_properties(input_image, width, height, blobs):
     r = width // 2
     for blob in blobs:
         dist = sqrt((blob.coords[0] - r) ** 2 + (blob.coords[1] - r) ** 2) / r
-        square = utils.get_rotated_surroundings(input_image, blob.coords, cutter_size)
+        square = utils.get_rotated_surroundings(input_image, blob.coords)
         result = calculate_properties(square)
         blob.dct_128_8 = result.dct_128_8
         blob.bmp_128_7 = result.bmp_128_7

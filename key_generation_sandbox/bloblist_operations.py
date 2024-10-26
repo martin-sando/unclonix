@@ -20,6 +20,7 @@ r = utils.r
 
 
 def research_picture(image, blobs):
+    image = image.copy()
     print(dir(blobs[0]))
     image = utils.draw_blobs(image, blobs, mode_circumference=True)
     return image
@@ -333,11 +334,15 @@ def get_dct(image, dct_size):
 
     return dct_image
 
-def get_distinctiveness(image, blobs_obj):
-    pixels = image.load()
+def get_distinctiveness(image, blobs_obj, sample_size=32):
+    image = image.copy()
+    pixels = to_array(image)
     blobs_dict = {}
+    draw_result = ImageDraw.Draw(image)
     for blob in blobs_obj:
-        length = blob.size * 1.3
+        xc = round(blob.coords[0])
+        yc = round(blob.coords[1])
+        length = blob.size * 1.6
         length2 = blob.size * 0.8
         cnt = 0
         brightness = 0
@@ -347,15 +352,29 @@ def get_distinctiveness(image, blobs_obj):
                 dist = sqrt((i) ** 2 + (j) ** 2)
                 if (length - 1) <= dist <= (length):
                     cnt += 1
-                    brightness += max(pixels[blob.coords[0] + i, blob.coords[1] + j][0] - 20, 0)
+                    brightness += max(pixels[xc + i, yc + j] - 20, 0)
+                    # draw_result.point((xc + i, yc + j), green)
 
                 if (length2 - 1) <= dist <= (length2):
                     cnt += 1
-                    brightness2 += max((170 - pixels[blob.coords[0] + i, blob.coords[1] + j][0]), 0)
+                    brightness2 += max((170 - pixels[xc + i, yc + j]), 0)
+                    # draw_result.point((xc + i, yc + j), green)
         brightness *= (brightness2 + 300)
         brightness /= 10000
         blobs_dict[blob] = (int(brightness), 0, 256 - int(brightness))
-    image = utils.draw_blobs(image, blobs_obj, blobs_dict, mode_circumference=True)
+
+        sample = []
+        for i in range(sample_size):
+            x = round(xc + length * cos(i * 2 * pi / sample_size))
+            y = round(yc + length * sin(i * 2 * pi / sample_size))
+            sample.append(round(pixels[x, y]))
+        sample.sort()
+        sample.reverse()
+        print(sample)
+        blobs_dict[blob] = (0, 0, 255 if sample[2] > 30 else 0)
+
+
+    image = utils.draw_blobs(image, blobs_obj, blobs_dict, mode_circle=True)
     return image
 
 
@@ -453,7 +472,7 @@ def process_photo(input_file, full_research_mode):
 
     #run_experiment(color_picture, blobs_obj)
 
-    run_experiment(generate_some_fields, image, blobs_obj)
+    # run_experiment(generate_some_fields, image, blobs_obj)
     run_experiment(find_draw_triangles, image, blobs_obj)
 
     src = np.float32([[best_triangle[0].coords[1], best_triangle[0].coords[0]],

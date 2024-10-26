@@ -189,6 +189,7 @@ def to_image_3d(input_array, width, length):
             draw_result.point((x1, y1), color)
     return image
 
+
 def transpose(image):
     result_image = Image.new("RGB", [image.height, image.width])
     draw_result = ImageDraw.Draw(result_image)

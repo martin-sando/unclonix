@@ -482,6 +482,57 @@ def binarying(image, threshold1, threshold2):
                             draw_result.point((x1+dx, y1+dy), pixels[x1+dx, y1+dy])
     return binary_image
 
+def precise_blobs(image, bloblist):
+    zeroes = np.zeros((image.width, image.height))
+    pixels = image.load()
+    bad_blob = False
+    start_coords = 0
+    cum_coords = [0, 0]
+    amount = 0
+    r = 0
+    coords_bfs = []
+
+    def execute(coords):
+        coords = (int(coords[0]), int(coords[1]))
+        nonlocal amount, cum_coords, start_coords, bad_blob, start_coords, r
+        dist = sqrt((start_coords[0] - coords[0])**2 + (start_coords[1] - coords[1]) ** 2)
+        if dist > r * 1.6 and pixels[coords][0] > 110:
+            bad_blob = True
+        if pixels[coords][0] < 40 or zeroes[coords] == 1:
+            return
+        zeroes[coords] = 1
+        amount = amount + pixels[coords][0]
+        cum_coords[0] = cum_coords[0] + coords[0] * pixels[coords][0]
+        cum_coords[1] = cum_coords[1] + coords[1] * pixels[coords][0]
+        coords_bfs.append([coords[0], coords[1] - 1])
+        coords_bfs.append([coords[0], coords[1] + 1])
+        coords_bfs.append([coords[0] + 1, coords[1]])
+        coords_bfs.append([coords[0] - 1, coords[1]])
+    def dfs(coords):
+        nonlocal coords_bfs
+        coords_bfs.append(coords)
+        iter = 0
+        while iter < len(coords_bfs):
+            execute(coords_bfs[iter])
+            iter = iter + 1
+
+    bloblist_new = []
+    for blob in bloblist:
+        start_coords = (int(blob.coords[0]), int(blob.coords[1]))
+        r = blob.size
+        coords_bfs.clear()
+        dfs([blob.coords[0], blob.coords[1]])
+        if (amount == 0 or bad_blob):
+            bad_blob = False
+            cum_coords = [0, 0]
+            amount = 0
+            continue
+        blob.coords = (cum_coords[0] / amount, cum_coords[1] / amount)
+        cum_coords = [0, 0]
+        amount = 0
+        bloblist_new.append(blob)
+    return bloblist_new
+
 def logging_blobs(image, filename):
     image = image.copy()
     morph_image = rgb2gray(image)
@@ -496,6 +547,8 @@ def logging_blobs(image, filename):
         blobs_obj.append(Blob(coords, size))
 
     brighten_blobs(image, blobs_obj)
+    blobs_obj = precise_blobs(image, blobs_obj)
+
     add_distinctiveness(image, blobs_obj)
     add_properties(image, req_width, req_height, blobs_obj)
     text_file = open(os.path.join(utils.bloblist_folder, filename + '.txt'), 'w')

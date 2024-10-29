@@ -474,6 +474,8 @@ def process_photo(input_file, full_research_mode):
 
     #run_experiment(get_dct, image, 32)
 
+    image = image.resize((64, 64))
+    save_report(image, "hash_compress")
     the_hash = utils.with_control(str(imagehash.phash(image)).rjust(16, '0'))
     the_hash += '_' + utils.with_control(utils.bin2hex(get_hash(image, (0, 0, 1024, 1024))))
     print(the_hash)

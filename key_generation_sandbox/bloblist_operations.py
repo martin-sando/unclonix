@@ -417,7 +417,7 @@ def affine_transform(image, src, dst):
     return transformed_image
 
 
-def get_hash(image, coords=(0, 0, req_width, req_height), hash_size=8, highfreq_factor=4):
+def dct_hash(image, coords=(0, 0, req_width, req_height), hash_size=8, highfreq_factor=4):
     image = image.crop((coords[0], coords[1], coords[2], coords[3]))
     if hash_size < 2:
         raise ValueError('Hash size must be greater than or equal to 2')
@@ -474,10 +474,11 @@ def process_photo(input_file, full_research_mode):
 
     #run_experiment(get_dct, image, 32)
 
-    image = image.resize((64, 64))
+    compressed_size = 64
+    image = image.resize((compressed_size, compressed_size))
     save_report(image, "hash_compress")
     the_hash = utils.with_control(str(imagehash.phash(image)).rjust(16, '0'))
-    the_hash += '_' + utils.with_control(utils.bin2hex(get_hash(image, (0, 0, 1024, 1024))))
+    the_hash += '_' + utils.with_control(utils.bin2hex(dct_hash(image, (0, 0, compressed_size, compressed_size))))
     print(the_hash)
     with open(utils.hashes_file, 'a') as f:
         print(filename + '\t' + the_hash, file=f)

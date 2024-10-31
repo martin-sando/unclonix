@@ -1,7 +1,7 @@
 import os.path
 import cv2
 import imagehash
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from math import sqrt, pi, cos, sin, exp, atan2
 import utils
@@ -462,8 +462,32 @@ def process_photo(input_file, full_research_mode):
     src = np.float32([[best_triangle[0].coords[1], best_triangle[0].coords[0]],
                       [best_triangle[1].coords[1], best_triangle[1].coords[0]],
                       [best_triangle[2].coords[1], best_triangle[2].coords[0]]])
-    image = run_experiment(affine_transform, image, src, np.float32([[712, 512], [412, 339], [412, 685]]))
+    # triangle_coords = [[712, 512], [412, 339], [412, 685]]
+    # margin = 400
+    triangle_coords = [[1000, 512], [24, 24], [24, 1000]]
+    margin = 50
+    gap = 50
+    rectangle_coords = ((margin, margin), (req_width - margin, req_height - margin))
+    font = ImageFont.truetype("arial.ttf", gap // 2)
+    image = run_experiment(affine_transform, image, src, np.float32(triangle_coords))
 
+    checkpoints = []
+    for x in range(rectangle_coords[0][0] + gap, rectangle_coords[1][0] - gap, 2 * gap):
+        for y in range(rectangle_coords[0][1] + gap, rectangle_coords[1][1] - gap, 2 * gap):
+            checkpoints.append((x, y))
+
+    def area_for_hashing(image):
+        image = image.copy()
+        draw = ImageDraw.Draw(image)
+        draw.rectangle(rectangle_coords, outline=blue)
+        for t in triangle_coords:
+            draw.circle((t[1], t[0]), gap // 2, outline=blue)
+        for xy in checkpoints:
+            h = utils.bin2hex(dct_hash(image, (xy[0], xy[1], xy[0] + gap, xy[1] + gap), 4))
+            draw.circle(xy, 3, outline=green)
+            draw.text((xy[0] + gap // 2, xy[1] + gap // 2), h, font=font)
+        return image
+    run_experiment(area_for_hashing, image)
 
     if not full_research_mode:
         return

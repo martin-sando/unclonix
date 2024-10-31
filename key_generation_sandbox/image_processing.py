@@ -534,8 +534,8 @@ def precise_blobs(image, bloblist):
 def logging_blobs(image, filename):
     import skimage
     image = image.copy()
-    morph_image = skimage.rgb2gray(image)
-    blobs_log = skimage.blob_log(morph_image, min_sigma=req_width / 750, max_sigma=req_width / 120, num_sigma=10, threshold=.35,
+    morph_image = skimage.color.rgb2gray(image)
+    blobs_log = skimage.feature.blob_log(morph_image, min_sigma=req_width / 750, max_sigma=req_width / 120, num_sigma=10, threshold=.35,
                          overlap=0.5)
     blobs_log[:, 2] = (blobs_log[:, 2] * np.sqrt(2)) + 1
     blobs_obj = []

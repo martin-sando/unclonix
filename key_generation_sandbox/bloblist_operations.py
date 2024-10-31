@@ -432,7 +432,7 @@ def dct_hash(image, coords=(0, 0, req_width, req_height), hash_size=8, highfreq_
     hash = ""
     for i in range(hash_size):
         for j in range(hash_size):
-            if (dctlowfreq[i][j] > med):
+            if (dctlowfreq[i][j] > 0):
                 hash += '1'
             else:
                 hash += '0'
@@ -479,13 +479,13 @@ def process_photo(input_file, full_research_mode):
     def area_for_hashing(image):
         image = image.copy()
         draw = ImageDraw.Draw(image)
-        draw.rectangle(rectangle_coords, outline=blue)
         for t in triangle_coords:
             draw.circle((t[1], t[0]), gap // 2, outline=blue)
         for xy in checkpoints:
-            h = utils.bin2hex(dct_hash(image, (xy[0], xy[1], xy[0] + gap, xy[1] + gap), 4))
-            draw.circle(xy, 3, outline=green)
+            h = utils.bin2hex(dct_hash(image, (xy[0], xy[1], xy[0] + 2*gap, xy[1] + 2*gap), 4))
             draw.text((xy[0] + gap // 2, xy[1] + gap // 2), h, font=font)
+            draw.circle(xy, 3, outline=green)
+        draw.rectangle(rectangle_coords, outline=blue)
         return image
     run_experiment(area_for_hashing, image)
 

@@ -483,4 +483,4 @@ def process_photo(input_file, full_research_mode):
         print(filename + '\t' + the_hash, file=f)
 
     utils.set_last_time('finishing_labor')
-    return utils.with_control(utils.bin2hex(get_hash(image, (0, 0, 1024, 1024))))
+    return the_hash

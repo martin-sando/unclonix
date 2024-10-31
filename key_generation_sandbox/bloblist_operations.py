@@ -456,7 +456,7 @@ def process_photo(input_file, full_research_mode):
 
     #run_experiment(color_picture, blobs_obj)
 
-    run_experiment(generate_some_fields, image, blobs_obj)
+    # run_experiment(generate_some_fields, image, blobs_obj)
     run_experiment(find_draw_triangles, image, blobs_obj)
 
     src = np.float32([[best_triangle[0].coords[1], best_triangle[0].coords[0]],

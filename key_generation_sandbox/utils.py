@@ -3,6 +3,7 @@ import cv2
 import random
 from math import atan2, pi, sqrt, exp
 import numpy as np
+from scipy.stats import ortho_group
 from PIL import Image, ImageDraw
 from Blob import Blob
 import datetime
@@ -42,6 +43,16 @@ hru_array = []
 for i in range(20):
     hru = [random.gauss(mu=0.0, sigma=1.0) for _ in range(64)]
     hru_array.append(hru)
+
+hru_ortho_memo = {}
+def hru_ortho(dim):
+    if dim in hru_ortho_memo:
+        return hru_ortho_memo[dim]
+    np.random.seed(seed=566)
+    result = ortho_group.rvs(dim=dim)
+    print(result[0][0], result, np.matmul(result.T, result))
+    hru_ortho_memo[dim] = result
+    return result
 
 def get_blob_info(image, coords, blobs, mask_num, filename, hru = hru_array[0], bound_1 = 0, bound_2 = 7, cutter_size=128):
     label_folder = report_folder + "/" + str(mask_num)
@@ -334,8 +345,21 @@ def get_rotated_surroundings(image, coords, cutter_size=128):
         (int(cutter_size / 2), int(cutter_size / 2), int(cutter_size * (3 / 2)), int(cutter_size * (3 / 2))))
     return surr_img
 
+def compress_by_medians(str_bin, new_length):
+    if len(str_bin) < new_length + 2:
+        return str_bin[:new_length]
+    s = list(str_bin)
+    random.Random(4).shuffle(s)
+    t = []
+    while len(s) >= 3 and len(s) + len(t) >= new_length + 2:
+        three = [s.pop() for _ in range(3)]
+        t.append(sorted(three)[1])
+    t.extend(s)
+    return compress_by_medians(''.join(t), new_length)
+
+
 def bin2hex(str_bin):
     return hex(int(str_bin, 2))[2:].rjust((len(str_bin) + 3) // 4, '0')
 
 def with_control(str_hex):
-    return str_hex + '[' + str(int(str_hex, 16) * 566 % 9566239) + ']'
+    return str_hex + '[' + str(int(str_hex, 16) * 566 % 999).rjust(3, '0') + ']'

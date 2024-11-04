@@ -432,7 +432,7 @@ def dct_hash(image, coords=(0, 0, req_width, req_height), hash_size=8, highfreq_
     hash = ""
     for i in range(hash_size):
         for j in range(hash_size):
-            if (dctlowfreq[i][j] > 0):
+            if (dctlowfreq[i][j] > med):
                 hash += '1'
             else:
                 hash += '0'
@@ -464,29 +464,45 @@ def process_photo(input_file, full_research_mode):
                       [best_triangle[2].coords[1], best_triangle[2].coords[0]]])
     # triangle_coords = [[712, 512], [412, 339], [412, 685]]
     # margin = 400
-    triangle_coords = [[1000, 512], [24, 24], [24, 1000]]
     margin = 50
-    gap = 50
+    triangle_coords = [[1000, 512], [24, 24], [24, 1000]]
+    gap = 30
     rectangle_coords = ((margin, margin), (req_width - margin, req_height - margin))
     font = ImageFont.truetype("arial.ttf", gap // 2)
     image = run_experiment(affine_transform, image, src, np.float32(triangle_coords))
 
     checkpoints = []
-    for x in range(rectangle_coords[0][0] + gap, rectangle_coords[1][0] - gap, 2 * gap):
-        for y in range(rectangle_coords[0][1] + gap, rectangle_coords[1][1] - gap, 2 * gap):
+    for x in range(rectangle_coords[0][0], rectangle_coords[1][0] - gap, gap):
+        for y in range(rectangle_coords[0][1], rectangle_coords[1][1] - gap, gap):
             checkpoints.append((x, y))
+    all_hashes = []
 
     def area_for_hashing(image):
-        image = image.copy()
-        draw = ImageDraw.Draw(image)
+        image_copy = image.copy()
+        draw = ImageDraw.Draw(image_copy)
+        hash_ortho = [0.0] * 64 #len(checkpoints)
         for t in triangle_coords:
-            draw.circle((t[1], t[0]), gap // 2, outline=blue)
-        for xy in checkpoints:
-            h = utils.bin2hex(dct_hash(image, (xy[0], xy[1], xy[0] + 2*gap, xy[1] + 2*gap), 4))
-            draw.text((xy[0] + gap // 2, xy[1] + gap // 2), h, font=font)
+            draw.circle((t[1], t[0]), margin // 2, outline=blue)
+        for j in range(len(checkpoints)):
+            xy = checkpoints[j]
+            square = image.crop((xy[0], xy[1], xy[0] + gap, xy[1] + gap))
+            a = to_array(square.resize((1, 1)))
+            # h = a[0][0] ** 0.5 / 0.16
+            h = a[0][0] / 2.56
+            for k in range(len(hash_ortho)):
+                hash_ortho[k % len(hash_ortho)] += h * utils.hru_ortho(len(checkpoints))[k][j]
+            # text = utils.bin2hex(dct_hash(image, (xy[0], xy[1], xy[0] + 2*gap, xy[1] + 2*gap), 4))
+            text = str(round(h))
+            draw.text((xy[0] + gap // 3, xy[1] + gap // 3), text, font=font, fill=blue)
             draw.circle(xy, 3, outline=green)
         draw.rectangle(rectangle_coords, outline=blue)
-        return image
+        med = sorted(hash_ortho)[len(hash_ortho) // 2]
+        hash_bin = ''.join([str(int(x > 0)) for x in hash_ortho])
+        # hash_bin = utils.compress_by_medians(hash_bin, 64)
+        hash_hex = utils.bin2hex(hash_bin)
+        all_hashes.append(hash_hex)
+        draw.text((margin // 2, margin // 3), hash_hex + " " + str([round(x) for x in hash_ortho[:10]]), font=font, fill=red)
+        return image_copy
     run_experiment(area_for_hashing, image)
 
     if not full_research_mode:
@@ -501,8 +517,9 @@ def process_photo(input_file, full_research_mode):
     compressed_size = 64
     image = image.resize((compressed_size, compressed_size))
     save_report(image, "hash_compress")
-    the_hash = utils.with_control(str(imagehash.phash(image)).rjust(16, '0'))
-    the_hash += '_' + utils.with_control(utils.bin2hex(dct_hash(image, (0, 0, compressed_size, compressed_size))))
+    all_hashes.append(str(imagehash.phash(image)).rjust(16, '0'))
+    all_hashes.append(utils.bin2hex(dct_hash(image, (0, 0, compressed_size, compressed_size))))
+    the_hash = '_'.join([utils.with_control(h) for h in all_hashes])
     print(the_hash)
     with open(utils.hashes_file, 'a') as f:
         print(filename + '\t' + the_hash, file=f)

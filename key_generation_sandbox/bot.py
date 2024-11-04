@@ -11,9 +11,14 @@ with open(Path.home() / ".ssh" / "unclonix" / "unclonix_hash_bot.txt") as f:
 bot = telebot.TeleBot(key)
 
 
-@bot.message_handler(commands=['start', 'help'])
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.send_message(message.from_user.id, "To get started, send label image, or type /help for more info")
+
+@bot.message_handler(commands=['help'])
 def manual(message):
-    bot.send_message(message.from_user.id, "To get started, send label image")
+    bot.send_message(message.from_user.id, "This is a bot to convert Unclonix label images to hash.\nRight now it supports only photos and converts them to hash.\nUnclonix website: https://unclonix.com/")
+
 
 
 @bot.message_handler(content_types=['photo', 'document'])

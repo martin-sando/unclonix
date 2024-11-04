@@ -289,9 +289,11 @@ def get_angle_image(input_image, width, height, precision, mode, cutter_size=64)
 def find_draw_triangles(image, blobs_obj):
     add_colors(blobs_obj)
 
-    red_blobs = get_best_color(blobs_obj, 5, 0)
-    green_blobs = get_best_color(blobs_obj, 5, 1)
-    blue_blobs = get_best_color(blobs_obj, 5, 2)
+    blobs_amount=5
+
+    red_blobs = get_best_color(blobs_obj, blobs_amount, 0)
+    green_blobs = get_best_color(blobs_obj, blobs_amount, 1)
+    blue_blobs = get_best_color(blobs_obj, blobs_amount, 2)
     colors_blobs = [red_blobs, green_blobs, blue_blobs]
     triangles = find_triangles(req_width // 2, colors_blobs, (60, 60, 60), 50)
     copy_image = image.copy()

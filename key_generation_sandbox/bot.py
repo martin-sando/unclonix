@@ -16,7 +16,7 @@ def manual(message):
     bot.send_message(message.from_user.id, "To get started, send label image")
 
 
-@bot.message_handler(content_types=['photo'])
+@bot.message_handler(content_types=['photo', 'document'])
 def handle_photo(message):
     print('message.photo =', message.photo)
     file_id = message.photo[-1].file_id
@@ -33,7 +33,6 @@ def handle_photo(message):
         bot.send_message(message.from_user.id, "Image hash is " + the_hash)
     except:
         print(traceback.format_exc())
-        bot.send_message(message.from_user.id, "An error occurred while calculating hash")
 
 
 def run():

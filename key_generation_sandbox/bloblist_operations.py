@@ -468,7 +468,11 @@ def process_photo(input_file, full_research_mode):
     triangle_coords = [[1000, 512], [24, 24], [24, 1000]]
     gap = 30
     rectangle_coords = ((margin, margin), (req_width - margin, req_height - margin))
-    font = ImageFont.truetype("arial.ttf", gap // 2)
+    font = None
+    try:
+        font = ImageFont.truetype("arial.ttf", gap // 2)
+    except:
+        pass
     image = run_experiment(affine_transform, image, src, np.float32(triangle_coords))
 
     checkpoints = []

@@ -42,7 +42,7 @@ def get_best_color(blobs, amount, color_num):
             best_blobs.append(blob)
     return best_blobs
 
-def add_colors(blobs):
+def add_colors2(blobs):
     color_dict = dict()
     for blob in blobs:
         dct_array = blob.bmp_128_7
@@ -67,6 +67,17 @@ def add_colors(blobs):
         color_dict[blob] = colors
     return color_dict
 
+def add_colors(blobs):
+    color_dict = dict()
+    for blob in blobs:
+        mindist = 1000000
+        for blob2 in blobs:
+            if (blob2.coords == blob.coords):
+                continue
+            mindist = min(mindist, (blob.coords[0] - blob2.coords[0]) ** 2 + (blob.coords[1] - blob2.coords[1]) ** 2 - ((blob.coords[0] - 512) ** 2 + (blob.coords[1] - 512) ** 2)/10)
+        color_dict[blob] = (mindist, mindist, mindist)
+    return color_dict
+
 def color_picture(blobs):
     color_d = add_colors(blobs)
     result_image = Image.new("RGB", [128, 128])
@@ -82,14 +93,20 @@ def color_picture(blobs):
 
 best_triangle = None
 def find_triangles(r, best_blobs_color, req_angles, threshold):
+    colors = add_colors(best_blobs_color[0])
     triangle = (0, 0, 0)
+    second_best = 1000
     best_score = 1000
     for blob1 in best_blobs_color[0]:
-        for blob2 in best_blobs_color[1]:
+        for blob2 in best_blobs_color[0]:
             if blob1.same_dot(blob2):
                 continue
-            for blob3 in best_blobs_color[2]:
+            for blob3 in best_blobs_color[0]:
                 if blob1.same_dot(blob3) or blob2.same_dot(blob3):
+                    continue
+                if (colors[blob1] < colors[blob2]):
+                    continue
+                if (colors[blob2] < colors[blob3]):
                     continue
                 coord1 = (blob1.coords[0] - r, blob1.coords[1] - r)
                 coord2 = (blob2.coords[0] - r, blob2.coords[1] - r)
@@ -97,7 +114,7 @@ def find_triangles(r, best_blobs_color, req_angles, threshold):
                 dist_12 = sqrt((coord1[0] - coord2[0]) ** 2 + (coord1[1] - coord2[1]) ** 2)
                 dist_13 = sqrt((coord1[0] - coord3[0]) ** 2 + (coord1[1] - coord3[1]) ** 2)
                 dist_23 = sqrt((coord2[0] - coord3[0]) ** 2 + (coord2[1] - coord3[1]) ** 2)
-                if (dist_12 > 300 and dist_13 > 300) and dist_23 > 300:
+                if True:
                     angle1 = atan2(coord2[1] - coord1[1], coord2[0] - coord1[0]) * (180 / pi)
                     angle2 = atan2(coord3[1] - coord2[1], coord3[0] - coord2[0]) * (180 / pi)
                     angle3 = atan2(coord1[1] - coord3[1], coord1[0] - coord3[0]) * (180 / pi)
@@ -127,8 +144,36 @@ def find_triangles(r, best_blobs_color, req_angles, threshold):
                     coord_centre = ((coord1[0] + coord2[0] + coord3[0]) / 3, (coord1[1] + coord2[1] + coord3[1]) / 3)
                     cur_score += sqrt(((coord_centre[0]) / 50) ** 2 + ((coord_centre[1]) / 50) ** 2)
                     if cur_score < best_score:
-                        triangle= (blob1, blob2, blob3)
+                        first = 0
+                        second = 0
+                        third = 0
+                        if (angle1 < angle2 and angle1 < angle3):
+                            first = blob1
+                        elif (angle2 < angle3 and angle2 < angle1):
+                            first = blob2
+                        else:
+                            first = blob3
+
+                        if (angle1 > angle2 and angle1 > angle3):
+                            third = blob1
+                        elif (angle2 > angle3 and angle2 > angle1):
+                            third = blob2
+                        else:
+                            third = blob3
+
+                        if (first != blob1 and third != blob1):
+                            second = blob1
+                        elif (first != blob2 and third != blob2):
+                            second = blob2
+                        else:
+                            second = blob3
+
+                        triangle = (first, second, third)
+                        second_best = best_score
                         best_score = cur_score
+                    elif cur_score < second_best:
+                        second_best = cur_score
+    print(best_score, second_best)
     triangles = [triangle]
     global best_triangle
     best_triangle = triangle
@@ -289,7 +334,7 @@ def get_angle_image(input_image, width, height, precision, mode, cutter_size=64)
 def find_draw_triangles(image, blobs_obj):
     add_colors(blobs_obj)
 
-    blobs_amount=5
+    blobs_amount=10
 
     red_blobs = get_best_color(blobs_obj, blobs_amount, 0)
     green_blobs = get_best_color(blobs_obj, blobs_amount, 1)

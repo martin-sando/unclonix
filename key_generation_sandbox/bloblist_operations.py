@@ -95,6 +95,7 @@ best_triangle = None
 def find_triangles(r, best_blobs_color, req_angles, threshold):
     colors = add_colors(best_blobs_color[0])
     triangle = (0, 0, 0)
+    best_angles = (0, 0, 0)
     second_best = 1000
     best_score = 1000
     for blob1 in best_blobs_color[0]:
@@ -144,19 +145,20 @@ def find_triangles(r, best_blobs_color, req_angles, threshold):
                     coord_centre = ((coord1[0] + coord2[0] + coord3[0]) / 3, (coord1[1] + coord2[1] + coord3[1]) / 3)
                     cur_score += sqrt(((coord_centre[0]) / 50) ** 2 + ((coord_centre[1]) / 50) ** 2)
                     if cur_score < best_score:
+                        best_angles = angles
                         first = 0
                         second = 0
                         third = 0
-                        if (angle1 < angle2 and angle1 < angle3):
+                        if (angler1 < angler2 and angler1 < angler3):
                             first = blob1
-                        elif (angle2 < angle3 and angle2 < angle1):
+                        elif (angler2 < angler3 and angler2 < angler1):
                             first = blob2
                         else:
                             first = blob3
 
-                        if (angle1 > angle2 and angle1 > angle3):
+                        if (angler1 > angler2 and angler1 > angler3):
                             third = blob1
-                        elif (angle2 > angle3 and angle2 > angle1):
+                        elif (angler2 > angler3 and angler2 > angler1):
                             third = blob2
                         else:
                             third = blob3
@@ -173,11 +175,11 @@ def find_triangles(r, best_blobs_color, req_angles, threshold):
                         best_score = cur_score
                     elif cur_score < second_best:
                         second_best = cur_score
-    print(best_score, second_best)
+    #print(best_score, second_best)
+    print(best_angles)
     triangles = [triangle]
     global best_triangle
     best_triangle = triangle
-    #print(best_score)
     return triangles
 
 def draw_triangles(image, triangles, best_blobs_color):

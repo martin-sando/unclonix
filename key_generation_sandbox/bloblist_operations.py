@@ -120,24 +120,27 @@ def find_triangles(r, best_blobs_color, req_angles, threshold):
                     angle2 = atan2(coord3[1] - coord2[1], coord3[0] - coord2[0]) * (180 / pi)
                     angle3 = atan2(coord1[1] - coord3[1], coord1[0] - coord3[0]) * (180 / pi)
                     angles = []
-                    angler1 = 180 - angle1 + angle2
+                    angler2 = 180 - angle1 + angle2
+                    angler1 = 180 - angle1 + angle3
+                    angler3 = 180 - angle3 + angle2
                     if angler1 > 360:
                         angler1 = angler1 - 360
                     if angler1 < 0:
                         angler1 = angler1 + 360
-                    angler2 = 180 - angle1 + angle3
                     if angler2 > 360:
                         angler2 = angler2 - 360
                     if angler2 < 0:
                         angler2 = angler2 + 360
-                    angler3 = 180 - angle3 + angle2
                     if angler3 > 360:
                         angler3 = angler3 - 360
                     if angler3 < 0:
                         angler3 = angler3 + 360
-                    angles.append(min(angler1, 360 - angler1))
-                    angles.append(min(angler2, 360 - angler2))
-                    angles.append(min(angler3, 360 - angler3))
+                    angler1 = min(angler1, 360-angler1)
+                    angler2 = min(angler2, 360-angler2)
+                    angler3 = min(angler3, 360-angler3)
+                    angles.append(angler1)
+                    angles.append(angler2)
+                    angles.append(angler3)
                     angles.sort()
                     cur_score = abs(angles[0] - req_angles[0]) + abs(angles[1] - req_angles[1]) + abs(
                         angles[2] - req_angles[2])
@@ -145,7 +148,6 @@ def find_triangles(r, best_blobs_color, req_angles, threshold):
                     coord_centre = ((coord1[0] + coord2[0] + coord3[0]) / 3, (coord1[1] + coord2[1] + coord3[1]) / 3)
                     cur_score += sqrt(((coord_centre[0]) / 50) ** 2 + ((coord_centre[1]) / 50) ** 2)
                     if cur_score < best_score:
-                        best_angles = angles
                         first = 0
                         second = 0
                         third = 0
@@ -163,9 +165,9 @@ def find_triangles(r, best_blobs_color, req_angles, threshold):
                         else:
                             third = blob3
 
-                        if (first != blob1 and third != blob1):
+                        if (not first.same_dot(blob1) and not third.same_dot(blob1)):
                             second = blob1
-                        elif (first != blob2 and third != blob2):
+                        elif (not first.same_dot(blob2) and not third.same_dot(blob2)):
                             second = blob2
                         else:
                             second = blob3
@@ -176,7 +178,6 @@ def find_triangles(r, best_blobs_color, req_angles, threshold):
                     elif cur_score < second_best:
                         second_best = cur_score
     #print(best_score, second_best)
-    print(best_angles)
     triangles = [triangle]
     global best_triangle
     best_triangle = triangle

@@ -488,6 +488,55 @@ def dct_hash(image, coords=(0, 0, req_width, req_height), hash_size=8, highfreq_
                 hash += '0'
     return hash
 
+def dilate(image, power):
+    img_2 = cv2.cvtColor(np.asarray(image), cv2.COLOR_BGR2GRAY)
+    if power > 0:
+        image = cv2.dilate(img_2, None, iterations=power)
+    else:
+        image = cv2.erode(img_2, None, iterations=-power)
+    return utils.transpose(utils.to_image(image, req_width, req_height))
+def normalise_brightness(image, bright_coef):
+    pixels = image.load()
+    draw_result = ImageDraw.Draw(image)
+
+    total_brightness = 0
+    for x1 in range(image.width):
+        for y1 in range(image.height):
+            total_brightness += pixels[x1, y1][0]
+
+
+    req_brightness = bright_coef * image.width * image.height
+
+    while (total_brightness > req_brightness * 1.05):
+        image = dilate(image, -1)
+        pixels = image.load()
+        total_brightness = 0
+        for x1 in range(image.width):
+            for y1 in range(image.height):
+                total_brightness += pixels[x1, y1][0]
+
+
+    while (total_brightness < req_brightness * 0.95):
+        image = dilate(image, 1)
+        pixels = image.load()
+        total_brightness = 0
+        for x1 in range(image.width):
+            for y1 in range(image.height):
+                total_brightness += pixels[x1, y1][0]
+
+    pixels = image.load()
+    total_brightness = 0
+    for x1 in range(image.width):
+        for y1 in range(image.height):
+            total_brightness += pixels[x1, y1][0]
+
+    req_brightness = bright_coef * image.width * image.height
+    brightness_coef = req_brightness / total_brightness
+    for x1 in range(image.width):
+        for y1 in range(image.height):
+            color = int(pixels[x1, y1][0] * brightness_coef)
+            draw_result.point((x1, y1), (color, color, color))
+    return image
 
 
 def process_photo(input_file, full_research_mode):
@@ -524,7 +573,7 @@ def process_photo(input_file, full_research_mode):
     except:
         pass
     image = run_experiment(affine_transform, image, src, np.float32(triangle_coords))
-
+    image = run_experiment(normalise_brightness, image, 7)
     checkpoints = []
     for x in range(rectangle_coords[0][0], rectangle_coords[1][0] - gap, gap):
         for y in range(rectangle_coords[0][1], rectangle_coords[1][1] - gap, gap):

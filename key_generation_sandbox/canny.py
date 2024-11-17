@@ -5,36 +5,39 @@ import numpy as np
 from PIL import Image, ImageDraw
 from math import sqrt, pi, cos, sin
 from collections import defaultdict
+import utils
 def canny_edge_detector(input_image, blur_power):
     input_pixels = input_image.load()
     width = input_image.width
     height = input_image.height
 
     # Transform the image to grayscale
-    grayscaled = compute_grayscale(input_pixels, width, height)
+    grayscaled = (compute_grayscale(input_pixels, width, height, 0), compute_grayscale(input_pixels, width, height, 1), compute_grayscale(input_pixels, width, height, 2))
 
 
     # Blur it to remove noise
-    blurred = compute_blur(grayscaled, blur_power)
+    blurred = (compute_blur(grayscaled[0], blur_power), compute_blur(grayscaled[1], blur_power), compute_blur(grayscaled[2], blur_power))
 
     # Compute the gradient
-    gradient, direction = compute_gradient(blurred, width, height)
+    gradient = compute_gradient(blurred[0], width, height) + compute_gradient(blurred[1], width, height) + compute_gradient(blurred[2], width, height)
+
+    gradient = normalize_gradient(gradient, 10)
 
     # Non-maximum suppression
     #filter_out_non_maximum(gradient, direction, width, height)
 
     # Filter out some edges
-    keep = filter_strong_edges(gradient, width, height, 10, 15)
+    keep = filter_strong_edges(gradient, width, height, 15, 20)
 
     return keep
 
 
-def compute_grayscale(input_pixels, width, height):
+def compute_grayscale(input_pixels, width, height, num):
     grayscale = np.empty((width, height))
     for x in range(width):
         for y in range(height):
             pixel = input_pixels[x, y]
-            grayscale[x, y] = (pixel[0] + pixel[1] + pixel[2]) / 3
+            grayscale[x, y] = (pixel[num]) // 3
     return grayscale
 
 
@@ -52,8 +55,22 @@ def compute_gradient(input_pixels, width, height):
                 magy = input_pixels[x, y + 1] - input_pixels[x, y - 1]
                 gradient[x, y] = sqrt(magx**2 + magy**2)
                 direction[x, y] = atan2(magy, magx)
-    return gradient, direction
+    #return gradient, direction
+    return gradient
 
+def normalize_gradient(gradient, brightness):
+    req_brightness = brightness * gradient.shape[0] * gradient.shape[1]
+    brightness = 0
+    for x in range(gradient.shape[0]):
+        for y in range(gradient.shape[1]):
+            brightness = brightness + gradient[x, y]
+    br_coef = req_brightness / brightness
+
+    new_gradient = gradient
+    for x in range(gradient.shape[0]):
+        for y in range(gradient.shape[1]):
+            new_gradient[x, y] = int(gradient[x, y] * br_coef)
+    return new_gradient
 
 def filter_out_non_maximum(gradient, direction, width, height):
     for x in range(1, width - 1):

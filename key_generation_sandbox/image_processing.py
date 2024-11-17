@@ -49,7 +49,7 @@ def finding_circle_ph2(image, compression_power):
     image = image.resize((width // compression_power, height // compression_power))
     width = image.width
     height = image.height
-    rmin = int(min(width, height) / 2.7)
+    rmin = int(min(width, height) / 3.3)
     rmax = int(min(width, height) / 1.9)
     precision = 0.5
     circles = find_circles(image, rmin, rmax, precision, 27)

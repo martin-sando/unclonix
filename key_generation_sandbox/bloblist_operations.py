@@ -573,7 +573,7 @@ def process_photo(input_file, full_research_mode):
     except:
         pass
     image = run_experiment(affine_transform, image, src, np.float32(triangle_coords))
-    image = run_experiment(normalise_brightness, image, 7)
+    #image = run_experiment(normalise_brightness, image, 7)
     checkpoints = []
     for x in range(rectangle_coords[0][0], rectangle_coords[1][0] - gap, gap):
         for y in range(rectangle_coords[0][1], rectangle_coords[1][1] - gap, gap):

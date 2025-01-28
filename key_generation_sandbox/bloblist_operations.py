@@ -38,7 +38,7 @@ def get_best_color(blobs, amount, color_num):
     for blob in blobs:
         if blob.dct_128_8 == None:
             continue
-        if (color_dict[blob][color_num] >= colors[max(len(colors) - amount, 0)]):
+        if (color_dict[blob][color_num] >= max(colors[max(len(colors) - amount, 0)], 0.01)):
             best_blobs.append(blob)
     return best_blobs
 
@@ -69,13 +69,29 @@ def add_colors2(blobs):
 
 def add_colors(blobs):
     color_dict = dict()
+    coords_centre = [0, 0]
+    counter = 0
     for blob in blobs:
-        mindist = 1000000
+        coords_centre[0] = coords_centre[0] + blob.coords[0]
+        coords_centre[1] = coords_centre[1] + blob.coords[1]
+        counter = counter + 1
+    coords_centre[0] = coords_centre[0] / counter
+    coords_centre[1] = coords_centre[1] / counter
+
+    for blob in blobs:
+        lengths = []
         for blob2 in blobs:
             if (blob2.coords == blob.coords):
                 continue
-            mindist = min(mindist, (blob.coords[0] - blob2.coords[0]) ** 2 + (blob.coords[1] - blob2.coords[1]) ** 2 - ((blob.coords[0] - 512) ** 2 + (blob.coords[1] - 512) ** 2)/10)
-        color_dict[blob] = (mindist, mindist, mindist)
+            dist = (blob.coords[0] - blob2.coords[0]) ** 2 + (blob.coords[1] - blob2.coords[1]) ** 2
+            lengths.append(dist)
+        lengths.sort()
+        dist = sqrt((blob.coords[0] - coords_centre[0]) ** 2 + (blob.coords[1] - coords_centre[1]) ** 2)
+        if 300 > dist > 250:
+            color = lengths[len(lengths) - 1]
+        else:
+            color = 0
+        color_dict[blob] = (color, color, color)
     return color_dict
 
 def color_picture(blobs):
@@ -337,7 +353,7 @@ def get_angle_image(input_image, width, height, precision, mode, cutter_size=64)
 def find_draw_triangles(image, blobs_obj):
     add_colors(blobs_obj)
 
-    blobs_amount=10
+    blobs_amount=100
 
     red_blobs = get_best_color(blobs_obj, blobs_amount, 0)
     green_blobs = get_best_color(blobs_obj, blobs_amount, 1)

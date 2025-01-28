@@ -1,3 +1,7 @@
+# Bot used to handle photos. To get bot key and bot telegram link, contact @Alex2184
+# Alternatively, create and use your own key and link
+# Right now, bot only supports photos. To use it, send photo and it will return hash.
+# It also may be executed in key_generation_sandbox
 import datetime
 from pathlib import Path
 import telebot
@@ -20,8 +24,6 @@ def manual(message):
     bot.send_message(message.from_user.id, "This is a bot to convert Unclonix label images to hash.\nRight now it "
                                            "supports only photos and converts them to hash.\nUnclonix website: "
                                            "https://unclonix.com/")
-
-
 
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):

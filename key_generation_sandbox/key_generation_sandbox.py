@@ -9,7 +9,7 @@ def run(input_file):
     if os.path.isdir(os.path.join(utils.input_folder, filename)):
         return ""
     if not os.path.isfile(os.path.join(utils.bloblist_folder, filename + '.txt')):
-        image_processing.process_photo(input_file, False)
+        image_processing.process_photo(input_file)
     else:
         print("Reusing computed bloblist")
     return bloblist_operations.process_photo(input_file, True)

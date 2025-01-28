@@ -1,3 +1,7 @@
+# Attempt to process videos
+# It is heavily unfinished and may contain bugs/weird behaviour
+# It parses video into some (5, may be changed) frames and calculates hash from them
+# Also it should contain flicker check, but right now it works poorly
 import os
 import sys
 from PIL import Image, ImageDraw
@@ -54,7 +58,6 @@ def get_flicker_array(image, bloblist):
             res_array[r] += 6
             res_array[r+1] += 4
             res_array[r+2] += 1
-    #print(res_array)
     return res_array
 
 def check_flicker(flicker_arrays):
